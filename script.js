@@ -1,28 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     const modelViewer = document.querySelector('#arModel');
-    const stayBtn = document.querySelector('#stayBtn');
-    const scaleBtn = document.querySelector('#scaleBtn');
     const aiOutput = document.querySelector('#aiOutput');
 
-    // Stay 3D Model Button
-    stayBtn.addEventListener('click', () => {
-        modelViewer.cameraOrbit = '0deg 90deg auto';
-    });
-
-    // Scale/Resize 3D Model Button
-    scaleBtn.addEventListener('click', () => {
-        if (modelViewer.scale === '1 1 1') {
-            modelViewer.scale = '2 2 2';
-        } else {
-            modelViewer.scale = '1 1 1';
-        }
-    });
-
-    // Speech recognition and AI response
+    // Setup AI Speech Recognition
     async function setupAI() {
         const recognizer = speechCommands.create('BROWSER_FFT');
         await recognizer.ensureModelLoaded();
-        
+
         const labels = recognizer.wordLabels(); // Get the word labels
         recognizer.listen(result => {
             const scores = result.scores; // Probability of each word
@@ -33,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add AI response logic here
             if (word === 'hello') {
                 aiOutput.innerText += '\nAI: Hi there!';
+                speakAI('Hi there!');
             }
         }, {
             probabilityThreshold: 0.75
@@ -42,5 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => recognizer.stopListening(), 10000);
     }
 
+    // AI Talking Function
+    function speakAI(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+    }
+
     setupAI();
+
+    // Handling model gestures
+    modelViewer.addEventListener('load', () => {
+        modelViewer.scale = '1 1 1'; // Default scale
+    });
+
+    modelViewer.addEventListener('scene-graph-ready', () => {
+        console.log('Model is ready to be interacted with.');
+    });
+
+    modelViewer.addEventListener('ar-status', (event) => {
+        if (event.detail.status === 'failed') {
+            console.log('AR failed to start.');
+        }
+    });
 });
