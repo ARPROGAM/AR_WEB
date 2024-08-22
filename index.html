@@ -5,20 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Web Experience</title>
     <link rel="stylesheet" href="styles.css">
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <model-viewer id="arModel" src="path/to/your/model.glb" ar ar-modes="scene-viewer quick-look" environment-image="neutral" auto-rotate camera-controls></model-viewer>
-        <div class="controls">
-            <button id="stayBtn">Stay 3D Model</button>
-            <button id="scaleBtn">Scale/Resize 3D Model</button>
-        </div>
+        <model-viewer 
+            id="arModel" 
+            src="path/to/your/model.glb" 
+            ar 
+            ar-modes="scene-viewer quick-look webxr" 
+            environment-image="neutral" 
+            auto-rotate 
+            camera-controls 
+            interaction-prompt="none" 
+            gesture-controls="pan">
+        </model-viewer>
         <div id="aiOutput"></div>
     </div>
-    <script src="https://unpkg.com/@google/model-viewer@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands"></script>
     <script src="script.js"></script>
 </body>
 </html>
-
