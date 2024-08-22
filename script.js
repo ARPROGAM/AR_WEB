@@ -1,56 +1,38 @@
-// Scaling Functionality
-let model = document.querySelector('a-entity');
-
-document.getElementById('scaleUp').addEventListener('click', () => {
-    let scale = model.getAttribute('scale');
-    model.setAttribute('scale', {
-        x: scale.x + 0.1,
-        y: scale.y + 0.1,
-        z: scale.z + 0.1
-    });
-});
-
-document.getElementById('scaleDown').addEventListener('click', () => {
-    let scale = model.getAttribute('scale');
-    if (scale.x > 0.1 && scale.y > 0.1 && scale.z > 0.1) {
-        model.setAttribute('scale', {
-            x: scale.x - 0.1,
-            y: scale.y - 0.1,
-            z: scale.z - 0.1
-        });
-    }
-});
-
-// Gesture Handler for Moving and Rotating
+// Gesture Handler for Moving, Rotating, and Scaling
 AFRAME.registerComponent('gesture-handler', {
     schema: {
         enabled: { default: true }
     },
     init: function () {
-        this.handleScale = this.handleScale.bind(this);
-        this.handleRotate = this.handleRotate.bind(this);
+        this.initialScale = this.el.getAttribute('scale');
+        this.initialRotation = this.el.getAttribute('rotation');
 
-        this.el.sceneEl.addEventListener('touchstart', this.handleScale);
-        this.el.sceneEl.addEventListener('touchmove', this.handleRotate);
+        this.handleGesture = this.handleGesture.bind(this);
+        this.el.sceneEl.addEventListener('touchmove', this.handleGesture);
     },
     remove: function () {
-        this.el.sceneEl.removeEventListener('touchstart', this.handleScale);
-        this.el.sceneEl.removeEventListener('touchmove', this.handleRotate);
+        this.el.sceneEl.removeEventListener('touchmove', this.handleGesture);
     },
-    handleScale: function (event) {
+    handleGesture: function (event) {
         if (event.touches.length === 2) {
+            // Scaling Gesture
             let scale = this.el.getAttribute('scale');
-            this.el.setAttribute('scale', {
-                x: scale.x * 1.05,
-                y: scale.y * 1.05,
-                z: scale.z * 1.05
-            });
-        }
-    },
-    handleRotate: function (event) {
-        if (event.touches.length === 1) {
+            let touch1 = event.touches[0];
+            let touch2 = event.touches[1];
+            let dist = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+            let newScale = {
+                x: this.initialScale.x * (dist / 100),
+                y: this.initialScale.y * (dist / 100),
+                z: this.initialScale.z * (dist / 100)
+            };
+            this.el.setAttribute('scale', newScale);
+        } else if (event.touches.length === 1) {
+            // Rotating Gesture
             let rotation = this.el.getAttribute('rotation');
-            rotation.y += event.touches[0].movementX;
+            rotation.y += event.touches[0].movementX * 0.1;
             this.el.setAttribute('rotation', rotation);
         }
     }
