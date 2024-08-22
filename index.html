@@ -3,27 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Web Experience</title>
+    <title>AR Experience</title>
     <link rel="stylesheet" href="styles.css">
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <model-viewer 
-            id="arModel" 
-            src="path/to/your/model.glb" 
-            ar 
-            ar-modes="scene-viewer quick-look webxr" 
-            environment-image="neutral" 
-            auto-rotate 
-            camera-controls 
-            interaction-prompt="none" 
-            gesture-controls="pan">
-        </model-viewer>
-        <div id="aiOutput"></div>
+    <!-- Scene for AR -->
+    <a-scene embedded arjs>
+        <!-- GLB Model -->
+        <a-assets>
+            <a-asset-item id="model" src="model.glb"></a-asset-item>
+        </a-assets>
+        <a-entity 
+            gltf-model="#model" 
+            scale="0.5 0.5 0.5"
+            position="0 0 0" 
+            gesture-handler>
+        </a-entity>
+    </a-scene>
+
+    <!-- Buttons for Scaling -->
+    <div class="ui-controls">
+        <button id="scaleUp">Scale Up</button>
+        <button id="scaleDown">Scale Down</button>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands"></script>
+
+    <!-- AI Interaction -->
+    <div id="ai">
+        <p id="ai-text">Hello! I'm your AR assistant. Tap on me to ask questions!</p>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://rawgit.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
