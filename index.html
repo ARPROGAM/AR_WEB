@@ -3,32 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Experience</title>
+    <title>ARZU - Augmented Reality House</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Scene for AR -->
-    <a-scene embedded arjs>
-        <!-- GLB Model -->
-        <a-assets>
-            <a-asset-item id="model" src="model.glb"></a-asset-item>
-        </a-assets>
-        <a-entity 
-            gltf-model="#model" 
-            scale="0.5 0.5 0.5"
-            position="0 0 0" 
-            gesture-handler>
-        </a-entity>
-    </a-scene>
-
-    <!-- AI Interaction -->
-    <div id="ai">
-        <p id="ai-text">Hello! I'm your AR assistant. Tap on me to ask questions!</p>
-    </div>
-
-    <!-- JavaScript -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://rawgit.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <h1>Welcome to ARZU</h1>
+    <p>Experience our 3D model in Augmented Reality!</p>
+    <button id="enter-ar">Enter AR</button>
+    <script src="https://unpkg.com/@google/model-viewer"></script>
     <script src="script.js"></script>
 </body>
 </html>
