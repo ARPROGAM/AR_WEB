@@ -9,7 +9,9 @@
 <body>
     <h1>Welcome to ARZU</h1>
     <p>Experience our 3D model in Augmented Reality!</p>
-    <button id="enter-ar">Enter AR</button>
+    <model-viewer src="house.glb" alt="A 3D model of a house" auto-rotate camera-controls ar>
+        Your browser does not support the <code>&lt;model-viewer&gt;</code> element.
+    </model-viewer>
     <script src="https://unpkg.com/@google/model-viewer"></script>
     <script src="script.js"></script>
 </body>
