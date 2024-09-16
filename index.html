@@ -1,18 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARZU - Augmented Reality House</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <h1>Welcome to ARZU</h1>
-    <p>Experience our 3D model in Augmented Reality!</p>
-    <model-viewer src="house.glb" alt="A 3D model of a house" auto-rotate camera-controls ar>
-        Your browser does not support the <code>&lt;model-viewer&gt;</code> element.
-    </model-viewer>
-    <script src="https://unpkg.com/@google/model-viewer"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AR with Joystick</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden;">
+    <a-scene embedded arjs="sourceType: webcam;">
+      <!-- Load the 3D model -->
+      <a-assets>
+        <a-asset-item id="model" src="https://drive.google.com/uc?export=download&id=1EECUjL9qTHMCvpgTfpE_uIqahfoE4d0e"></a-asset-item>
+      </a-assets>
+
+      <!-- 3D Model -->
+      <a-entity 
+        gltf-model="#model"
+        position="0 0 0"
+        scale="0.5 0.5 0.5"
+        rotation="0 0 0">
+      </a-entity>
+
+      <!-- Camera and Joystick -->
+      <a-camera position="0 1.6 0" wasd-controls-enabled="false"></a-camera>
+      
+      <!-- Joystick for movement -->
+      <div id="joystickContainer" style="position: fixed; bottom: 20px; left: 20px;">
+        <canvas id="joystick" width="150" height="150"></canvas>
+      </div>
+      
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.3/nipplejs.min.js"></script>
+      <script>
+        // Joystick setup
+        const joystick = nipplejs.create({
+          zone: document.getElementById('joystickContainer'),
+          mode: 'dynamic',
+          position:
