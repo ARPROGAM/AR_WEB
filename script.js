@@ -8,7 +8,7 @@ const joystick = nipplejs.create({
   multitouch: true
 });
 
-// Get the camera entity for controlling movement
+// Get the camera entity (AR.js camera)
 let camera = document.querySelector('a-camera');
 
 // Handle joystick movements
