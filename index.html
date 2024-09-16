@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AR with Joystick</title>
+    <link rel="stylesheet" href="style.css" />
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
   </head>
-  <body style="margin: 0; overflow: hidden;">
+  <body>
     <a-scene embedded arjs="sourceType: webcam;">
       <!-- Load the 3D model -->
       <a-assets>
@@ -22,18 +23,16 @@
         rotation="0 0 0">
       </a-entity>
 
-      <!-- Camera and Joystick -->
+      <!-- Camera -->
       <a-camera position="0 1.6 0" wasd-controls-enabled="false"></a-camera>
-      
-      <!-- Joystick for movement -->
-      <div id="joystickContainer" style="position: fixed; bottom: 20px; left: 20px;">
-        <canvas id="joystick" width="150" height="150"></canvas>
-      </div>
-      
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.3/nipplejs.min.js"></script>
-      <script>
-        // Joystick setup
-        const joystick = nipplejs.create({
-          zone: document.getElementById('joystickContainer'),
-          mode: 'dynamic',
-          position:
+    </a-scene>
+
+    <!-- Joystick container -->
+    <div id="joystickContainer">
+      <canvas id="joystick" width="150" height="150"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.3/nipplejs.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
