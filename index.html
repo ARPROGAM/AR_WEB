@@ -2,70 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARZU</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Horizontal YouTube Video Layout with Autoplay and Loop</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .video-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .video-container {
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <!-- Model-viewer with the link to the GLB model -->
-    <model-viewer id="ar-model" 
-                  src="https://drive.google.com/uc?export=download&id=1EECUjL9qTHMCvpgTfpE_uIqahfoE4d0e" 
-                  alt="3D Model" 
-                  ar 
-                  ar-modes="scene-viewer webxr quick-look" 
-                  environment-image="neutral" 
-                  disable-zoom>
-    </model-viewer>
 
-    <!-- Joystick container -->
-    <div id="joystickContainer">
-        <canvas id="joystick" width="150" height="150"></canvas>
+    <div class="video-row">
+        <!-- Video 1 (Left) -->
+        <div class="video-container">
+            <iframe width="350" height="200" 
+                    src="https://www.youtube.com/embed/W64_T7RLbMo?autoplay=1&mute=1&loop=1&playlist=W64_T7RLbMo" 
+                    frameborder="0" 
+                    allow="autoplay; encrypted-media" 
+                    allowfullscreen>
+            </iframe>
+            <p>Video 1 (Left)</p>
+        </div>
+
+        <!-- Video 2 (Center) -->
+        <div class="video-container">
+            <iframe width="350" height="200" 
+                    src="https://www.youtube.com/embed/nSmPoqZNt_I?autoplay=1&mute=1&loop=1&playlist=nSmPoqZNt_I" 
+                    frameborder="0" 
+                    allow="autoplay; encrypted-media" 
+                    allowfullscreen>
+            </iframe>
+            <p>Video 2 (Center)</p>
+        </div>
+
+        <!-- Video 3 (Right) -->
+        <div class="video-container">
+            <iframe width="350" height="200" 
+                    src="https://www.youtube.com/embed/lGI0UfTzYbE?autoplay=1&mute=1&loop=1&playlist=lGI0UfTzYbE" 
+                    frameborder="0" 
+                    allow="autoplay; encrypted-media" 
+                    allowfullscreen>
+            </iframe>
+            <p>Video 3 (Right)</p>
+        </div>
     </div>
 
-    <!-- Scripts -->
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.3/nipplejs.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const modelViewer = document.getElementById('ar-model');
-            
-            // Initialize the joystick
-            const joystick = nipplejs.create({
-                zone: document.getElementById('joystickContainer'),
-                mode: 'dynamic',
-                position: { left: '50%', top: '50%' },
-                color: 'blue',
-                size: 100,
-                multitouch: true
-            });
-
-            // Function to enter AR mode automatically
-            function enterAR() {
-                if (modelViewer) {
-                    modelViewer.enterAR(); // This function should trigger AR mode if supported
-                }
-            }
-
-            // Wait for the model-viewer to be ready
-            modelViewer.addEventListener('load', () => {
-                // Check if AR is available and then trigger it
-                if (modelViewer.canEnterAR) {
-                    enterAR();
-                }
-            });
-
-            // Handle joystick movements
-            joystick.on('move', (evt, data) => {
-                // Joystick logic here; note: model-viewer does not provide direct API for camera control
-                // Therefore, you might need to implement custom logic or switch to a framework like A-Frame
-                console.log('Joystick direction:', data.direction.angle, 'Distance:', data.distance);
-            });
-
-            // Handle joystick release (stop movement)
-            joystick.on('end', () => {
-                // Handle joystick end event
-            });
-        });
-    </script>
 </body>
 </html>
