@@ -3,17 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Download</title>
+    <title>Evde Tek Başına 2 - Video</title>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+        }
+        .video-title {
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        iframe {
+            width: 100%;
+            max-width: 800px;
+            height: 450px;
+            border: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>Download Video</h1>
-    <p>Click the button below to download the video.</p>
-
-    <!-- Download Button -->
-    <a href="https://vidrame.pro/vr/0b14eaef?ap=1" download>
-        <button>Download Video</button>
-    </a>
-
-    <p>Note: If the video doesn't download directly, it may be restricted by the site.</p>
+    <div class="container">
+        <div class="video-title">Evde Tek Başına 2</div>
+        <iframe src="https://vidrame.pro/vr/0b14eaef?ap=1" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    </div>
 </body>
 </html>
