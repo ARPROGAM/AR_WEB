@@ -1,15 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Display</title>
+    <title>Merlin 3. Bölüm | Türkçe Dublaj | Nimueh'in İşareti</title>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #000; /* Night mode */
+            color: #fff; /* White text */
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .title {
+            font-size: 3rem; /* Large title font */
+            font-weight: bold;
+            margin-top: 20px; /* Added margin-top so the title does not overlap */
+            color: #f0f0f0; /* Light color for title */
+            text-transform: uppercase;
+            margin-bottom: 20px; /* Added space below title */
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px; /* Maximum video width */
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            background-color: #000;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .description {
+            max-width: 90%;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #222; /* Dark grey */
+            border: 1px solid #555;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #fff;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem; /* Adjust title font size for mobile */
+            }
+            .description {
+                font-size: 0.9rem; /* Smaller text for mobile */
+            }
+        }
+        @media (max-width: 480px) {
+            .title {
+                font-size: 1.5rem; /* Smaller title for very small screens */
+            }
+            .description {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+    <script>
+        // Disable right-click on the entire page
+        document.addEventListener('contextmenu', event => event.preventDefault());
+    </script>
 </head>
 <body>
-    <h1>Video Player Example</h1>
-    <video controls>
-        <source src="blob:https://vidrame.pro/d85f9126-6261-4d69-a241-c577adc35b82" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
+    <!-- Video title at the top center above the player -->
+    <div class="title">Merlin 3. Bölüm | Türkçe Dublaj | Nimueh'in İşareti</div>
+
+    <!-- Custom Video Player using the Blob URL -->
+    <div class="video-container">
+        <video controls autoplay>
+            <source src="blob:https://vidrame.pro/d85f9126-6261-4d69-a241-c577adc35b82" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
 </body>
 </html>
