@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qurilish Testi</title>
+    <title>Qurilish Bo'yicha Interaktiv Test</title>
     <style>
+        /* CSS stillari avvalgi javobdagidek qoladi */
         body {
             font-family: sans-serif;
             line-height: 1.6;
@@ -27,7 +28,7 @@
         .options-container button {
             display: block;
             width: 100%;
-            padding: 10px 15px;
+            padding: 12px 15px; /* O'lcham biroz kattalashtirildi */
             margin: 10px 0;
             background-color: #007bff;
             color: white;
@@ -66,22 +67,34 @@
             color: #666;
             margin-top: 5px;
         }
-        #next-button, #retry-yes, #retry-no, #next-batch-button {
+        #next-button, #retry-yes, #retry-no, #next-batch-button, #start-button {
             padding: 10px 20px;
             font-size: 1em;
             cursor: pointer;
             border-radius: 5px;
             border: none;
             margin-top: 20px;
-        }
-        #next-button {
+            margin-right: 10px; /* Tugmalar orasida joy */
             background-color: #28a745;
             color: white;
-            display: none; /* Initially hidden */
+        }
+         #retry-yes, #retry-no {
+             background-color: #ffc107;
+             color: black;
          }
-        #next-button:disabled {
+         #retry-no {
+             background-color: #6c757d;
+              color: white;
+          }
+        #next-button:disabled, #next-batch-button:disabled {
              background-color: #cccccc;
              cursor: not-allowed;
+         }
+         #next-button.hidden, #next-batch-button.hidden, #retry-prompt.hidden, #batch-results.hidden, #final-results.hidden, #feedback.hidden {
+              display: none;
+          }
+         #start-button {
+             background-color: #17a2b8;
          }
 
         #batch-results, #final-results {
@@ -100,27 +113,33 @@
         #incorrect-list li {
             margin-bottom: 5px;
             color: #721c24;
+            font-size: 0.9em; /* Xato savollar ro'yxati kichikroq */
         }
          #progress-indicator {
              margin-bottom: 15px;
              font-weight: bold;
              color: #495057;
+             text-align: right;
+             font-size: 0.9em;
          }
     </style>
 </head>
 <body>
 
 <div class="quiz-container">
-    <h1>Qurilish Bo'yicha Test</h1>
+    <h1>Qurilish Bo'yicha Interaktiv Test</h1>
 
-    <div id="quiz-area">
+    <div id="start-screen">
+         <p>Testni boshlash uchun quyidagi tugmani bosing. Test qismlarga bo'lingan va har bir qismda 25 ta savol mavjud. Variantlar va savollar ketma-ketligi aralashtiriladi.</p>
+         <button onclick="startQuiz()" id="start-button">Testni Boshlash</button>
+    </div>
+
+    <div id="quiz-area" class="hidden">
         <div id="progress-indicator"></div>
-        <div id="question-text">Testni boshlash uchun quyidagi tugmani bosing.</div>
-        <div id="options-container">
-             <button onclick="startQuiz()" id="start-button">Testni Boshlash</button>
-        </div>
+        <div id="question-text"></div>
+        <div id="options-container"></div>
         <div id="feedback" class="hidden"></div>
-        <button id="next-button" onclick="nextQuestion()" disabled>Keyingi Savol</button>
+        <button id="next-button" class="hidden" onclick="nextQuestion()" disabled>Keyingi Savol</button>
     </div>
 
     <div id="batch-results" class="hidden">
@@ -131,818 +150,1013 @@
         <div id="retry-prompt" class="hidden">
             <p>Xato qilingan savollarni qayta ishlashni xohlaysizmi?</p>
             <button id="retry-yes" onclick="handleRetryYes()">Ha</button>
-            <button id="retry-no" onclick="handleNextBatch(false)">Yo'q</button>
+            <button id="retry-no" onclick="handleNextBatch(false)">Yo'q, Keyingi Qism</button>
         </div>
          <button id="next-batch-button" class="hidden" onclick="handleNextBatch(false)">Keyingi Qism</button>
     </div>
 
+     <div id="retry-area" class="hidden">
+         <h3>Xatolar Ustida Ishlash</h3>
+         <div id="retry-progress-indicator"></div>
+         <div id="retry-question-text"></div>
+         <div id="retry-options-container"></div>
+         <div id="retry-feedback" class="hidden"></div>
+         <button id="retry-next-button" class="hidden" onclick="nextRetryQuestion()">Keyingi Xato Savol</button>
+     </div>
+
+
     <div id="final-results" class="hidden">
         <h3>Yakuniy Natija</h3>
         <p id="final-result-text"></p>
+        <button onclick="startQuiz()">Testni Qayta Boshlash</button>
     </div>
 </div>
 
 <script>
     // --- SAVOLLAR VA JAVOBLAR BAZASI ---
     // !!! DIQQAT !!! 'correct_answer' maydonini har bir savol uchun TO'G'RILAB CHIISHINGIZ KERAK!
-    // Faqatgina oldin tasdiqlangan bir nechta javob to'g'ri kiritilgan.
-    // Qolgan barcha savollar uchun VAQTINCHALIK 'a' varianti to'g'ri deb belgilangan.
     const questionsData = [
-        // Savollar shu yerga yuqoridagi Python kodidan ko'chiriladi
-        // (faqatgina ro'yxatning ichidagi qismi, [] qavslarsiz)
-        // Misol:
-        {
-            'id': 1,
-            'question': "1. Montaj massasi bu-",
-            'options': [
-                "bu montaj qilinayotgan konstruksiya va u bilan birgalikda ko‘tarilayotgan moslamalarining massasi.",
-                "bu montaj qilinayotgan konstruksiyaning massasi",
-                "ko’taruchi qurilmaning massasi"
-            ],
-            'correct_answer': "bu montaj qilinayotgan konstruksiya va u bilan birgalikda ko‘tarilayotgan moslamalarining massasi.",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 103
-        },
-        {   'id': 2,
-            'question': "2. Montaj balandligi bu-",
-            'options': [
-                "konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi",
-                "konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi) yig‘indisi",
-                "konstruksiyalarni o‘rnatish balandligi (sathiy belgisi montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi"
-            ],
-            'correct_answer': "konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 104
-        },
-        {   'id': 3,
-            'question': "3. H= h0 + hzah + h + hstr qaysi turdagi kranning ilmog’ini uzunligini hisoblash formulasi",
-            'options': [
-                "minor tipidagi kran ilmog’ining ko‘tarilish balandligi",
-                "Avto kran ilmog’ining ko‘tarilish balandligi",
-                "Sepli kran ilmog’ining ko‘tarilish balandligi"
-            ],
-            'correct_answer': "minor tipidagi kran ilmog’ining ko‘tarilish balandligi",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 104
-        },
-        {   'id': 4,
-            'question': "4. L = a/2 + b + c + 1 qaysi turdagi kranning strela uzunligini hisoblash formulasi",
-            'options': [
-                "minor tipidagi kran strelasining qulochi.",
-                "avtokran strelasining qulochi.",
-                "sepli kran strelasining qulochi."
-            ],
-            'correct_answer': "minor tipidagi kran strelasining qulochi.",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 105
-        },
-        {   'id': 5,
-            'question': "5. Zahira balandligi odatda necha metr boladi",
-            'options': [
-                "0.4-1.0 m gacha",
-                "0.5-1.2",
-                "0.6-1.2"
-            ],
-            'correct_answer': "0.4-1.0 m gacha",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 105
-        },
-        {   'id': 6,
-            'question': "6. Texnologik nuqtai-nazardan montaj mashinalari ularning mobilligi va ular xizmat ko‘rsatadigan montaj zonasi bo‘yicha tasniflari nechta?",
-            'options': [ "4 ta", "5 ta", "6 ta" ],
-            'correct_answer': "4 ta", # VAQTINCHA
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 101
-        },
-        {   'id': 7,
-            'question': "7. Kranning talab qilinadigan yuk ko‘taruvchanligi qanday ifodlanadi",
-            'options': [ "Q=q1+ q2", "Q1=q1+ q2", "Q1=q1+ q" ],
-            'correct_answer': "Q=q1+ q2",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 104
-        },
-        {   'id': 8,
-            'question': "8. Minorali kranda hstr- ish holatidagi stropovka balandligi montaj qilinayotgan element yuqorisidan kran ilmog‘igacha bolgan masofa shu masofa no’rma bo’yicha necha metr bolish kerak",
-            'options': [ "1-4 m", "1-5 m", "1.6 m" ],
-            'correct_answer': "1-4 m",
-            'book': "Qurilishni tashkil etish va rejalashtirish (Toshkent – 2022)",
-            'page': 105
-        },
-        {   'id': 9,
-            'question': "9. Vaqtinchlik yo’llar odatdan nechta tomonlama bo’ladi .",
-            'options': [ "2", "3", "4" ],
-            'correct_answer': "2",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 10,
-            'question': "10. Qurilish bosh tarhi tarkibida qurilishga oid avtomobil yo’llarini loyihalash necha ketma ketlikda amalga oshiriladi",
-            'options': [ "6 ta", "7 ta", "5 ta" ],
-            'correct_answer': "6 ta", # VAQTINCHA
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 11,
-            'question': "11. Vaqtinchalik yo’llar ombor maydonlarida qancha masofa uzoqlikda joylashtirlishi kerak",
-            'options': [ "0.5-1.0 m", "0.6-1.2 m", "0.5-1.2 m" ],
-            'correct_answer': "0.5-1.0 m",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 12,
-            'question': "12. Vaqtinchalik yo’llar temir yo’l o’qigacha qancha masofa uzoqlikda joylashtirlishi kerak",
-            'options': [ "3.75 m", "3.85 m", "3.95 m" ],
-            'correct_answer': "3.75 m",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 13,
-            'question': "13. Vaqtinchalik yo’llar va ko’tarish qurilmalar oasidagi masofa qancha bo’lishi kerak",
-            'options': [ "6.5-12.5 m", "6.0-12.0 m", "5.0-12.5" ],
-            'correct_answer': "6.5-12.5 m",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 14,
-            'question': "14. Chuqur va xandaqlar bilan vaqtinchalik yo’llar orasidagi masofa qancha bo’lishi kerak agar grunti tuproqli bo’lsa .",
-            'options': [ "0.5-0.75 m", "0.6-0.7 m", "0.5-0.7 m" ],
-            'correct_answer': "0.5-0.75 m",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 15,
-            'question': "15. Chuqur va xandaqlar bilan vaqtinchalik yo’llar orasidagi masofa qancha bo’lishi kerak agar grunti qumli bo’lsa .",
-            'options': [ "1.0-1.05 m", "1.2-1.4", "1.0-1.4" ],
-            'correct_answer': "1.0-1.05 m", # VAQTINCHA
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 16,
-            'question': "16. Agar vaqtinchalik yollar bir yo’lakli bo’lsa uning kengligi qancha bolishi kerak",
-            'options': [ "3.5 m", "4.5 m", "3.0 m" ],
-            'correct_answer': "3.5 m",
-            'book': "Test Sheet Image 2", 'page': None
-        },
-        {   'id': 17,
-            'question': "17. Agar vaqtinchalik yollar ikki yo’lakli bo’lsa uning kengligi qancha bolishi kerak",
-            'options': [ "6.0 m", "7.0 m", "6.5 m" ],
-            'correct_answer': "6.0 m",
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 18,
-            'question': "18. Agar vaqtinchalik yo’llar bir yolakli qilib loyihalansa qanday shakilda bolish kerak",
-            'options': [ "aylana", "to'rt burchak", "uch burchak" ],
-            'correct_answer': "aylana",
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 19,
-            'question': "19. Halqa bo’ylab harakatlanilganda bir tomonlama korish imkoniyati 100 m dan kam bo’lmasligi uchun yo’l bo’ylab qanday maydonlar bo’lishi kerak .",
-            'options': [ "eni 6 m uzunligi 12-18 m li maydonlar", "eni 5 m uzunligi 10-18 m li maydonlar", "eni 6.5 m uzunligi 12-18 m li maydonlar" ],
-            'correct_answer': "eni 6 m uzunligi 12-18 m li maydonlar",
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 20,
-            'question': "20. Yo’llarning burilish radiusi nimaga bogliq",
-            'options': [ "Avtomobil karvonlarining qayrila olish imkoniyatiga", "avtomobillar soniga", "avtomobilar gabaritiga" ],
-            'correct_answer': "Avtomobil karvonlarining qayrila olish imkoniyatiga", # VAQTINCHA
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 21,
-            'question': "21. Burilish aylanasinig taqshqi radiusi tirkamasiz avtomobillar uchun qancha bo’lishi kerak",
-            'options': [ "6-8 m", "7-8 m", "6-7 m" ],
-            'correct_answer': "6-8 m", # VAQTINCHA
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 22,
-            'question': "22. Qurilish qatnov yo’llari uchun qancha bo’lishi kerak",
-            'options': [ "12 m", "11 m", "10 m" ],
-            'correct_answer': "12 m", # VAQTINCHA
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 23,
-            'question': "23. Vaqtinchlik yo’llar qurilishida odatda tosh shag’allar fraksiyasi necha mm boladi",
-            'options': [ "70mm", "60 mm", "50 mm" ],
-            'correct_answer': "70mm", # VAQTINCHA
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 24,
-            'question': "24. Vaqtinchalik yollarga tushayotgan yuk necha tonnadan o’tgandan song temir beton plitalardan foydalanilsa maqsadga muofiq",
-            'options': [ "12 t", "11 t", "13 t" ],
-            'correct_answer': "12 t", # VAQTINCHA
-            'book': "Test Sheet Image 3", 'page': None
-        },
-        {   'id': 25,
-            'question': "25. Vaqtinchalik yo’llarda qum qavati qalinligi necha sm",
-            'options': [ "10-25 sm", "12-20", "10-20" ],
-            'correct_answer': "10-25 sm", # VAQTINCHA
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 26,
-            'question': "26. Vaqtivchalik yo’llarda foydalaniladigan temir beton plitalarining qalinligi necha sm",
-            'options': [ "16-18 sm", "17-18 sm", "16-20 sm" ],
-            'correct_answer': "16-18 sm", # VAQTINCHA
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 27,
-            'question': "27. Qurilishda ombor xo’jaligini loyihalashda necha turdan foydalaniladi",
-            'options': [ "ochiq ,yarim ochiq ,yopiq ombirlar", "yarim ochiq ,yopiq ombirlar", "ochiq ,yarim ochiq" ],
-            'correct_answer': "ochiq ,yarim ochiq ,yopiq ombirlar",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 28,
-            'question': "28. Yopiq omborlar kamida necha m2 bo’lishi kerak",
-            'options': [ "60 m2", "50 m2", "55 m2" ],
-            'correct_answer': "60 m2",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 29,
-            'question': "29. Yopiq omborlarda qanday xom ashyolar saqlanadi",
+        // --- 1-sahifa savollari ---
+        {   'id': 1,'question': "1. Montaj massasi bu-",
+            'options': ["bu montaj qilinayotgan konstruksiya va u bilan birgalikda ko‘tarilayotgan moslamalarining massasi.","bu montaj qilinayotgan konstruksiyaning massasi","ko’taruchi qurilmaning massasi"],
+            'correct_answer': "bu montaj qilinayotgan konstruksiya va u bilan birgalikda ko‘tarilayotgan moslamalarining massasi.",'book': "Toshkent-2022",'page': 103},
+        {   'id': 2,'question': "2. Montaj balandligi bu-",
+            'options': ["konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi","konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi) yig‘indisi","konstruksiyalarni o‘rnatish balandligi (sathiy belgisi montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi"],
+            'correct_answer': "konstruksiyalarni o‘rnatish balandligi (sathiy belgisi), yer sathidan yoki montaj qilinayotgan elementlarining tayanch yuzasidan (tayanchdan konstruksiyalarni ko‘tarish balandligi) zahira balandligi, montaj qilinayotgan konstruksiyalarning balandligi (uzunligi va qalinligi), stroplar balandligi yoki yukni qamrab (ushlab) oluvchi moslamalarining balandliklari yig‘indisi",'book': "Toshkent-2022",'page': 104},
+        {   'id': 3,'question': "3. H= h0 + hzah + h + hstr qaysi turdagi kranning ilmog’ini uzunligini hisoblash formulasi",
+            'options': ["minor tipidagi kran ilmog’ining ko‘tarilish balandligi","Avto kran ilmog’ining ko‘tarilish balandligi","Sepli kran ilmog’ining ko‘tarilish balandligi"],
+            'correct_answer': "minor tipidagi kran ilmog’ining ko‘tarilish balandligi",'book': "Toshkent-2022",'page': 104},
+        {   'id': 4,'question': "4. L = a/2 + b + c + 1 qaysi turdagi kranning strela uzunligini hisoblash formulasi",
+            'options': ["minor tipidagi kran strelasining qulochi.","avtokran strelasining qulochi.","sepli kran strelasining qulochi."],
+            'correct_answer': "minor tipidagi kran strelasining qulochi.",'book': "Toshkent-2022",'page': 105},
+        {   'id': 5,'question': "5. Zahira balandligi odatda necha metr boladi",
+            'options': ["0.4-1.0 m gacha","0.5-1.2","0.6-1.2"],
+            'correct_answer': "0.4-1.0 m gacha",'book': "Toshkent-2022",'page': 105},
+        {   'id': 6,'question': "6. Texnologik nuqtai-nazardan montaj mashinalari ularning mobilligi va ular xizmat ko‘rsatadigan montaj zonasi bo‘yicha tasniflari nechta?",
+            'options': [ "4 ta", "5 ta", "6 ta" ],'correct_answer': "4 ta", # VAQTINCHA
+            'book': "Toshkent-2022",'page': 101 },
+        {   'id': 7,'question': "7. Kranning talab qilinadigan yuk ko‘taruvchanligi qanday ifodlanadi",
+            'options': [ "Q=q1+ q2", "Q1=q1+ q2", "Q1=q1+ q" ],'correct_answer': "Q=q1+ q2",
+            'book': "Toshkent-2022",'page': 104 },
+        {   'id': 8,'question': "8. Minorali kranda hstr- ish holatidagi stropovka balandligi montaj qilinayotgan element yuqorisidan kran ilmog‘igacha bolgan masofa shu masofa no’rma bo’yicha necha metr bolish kerak",
+            'options': [ "1-4 m", "1-5 m", "1.6 m" ],'correct_answer': "1-4 m",
+            'book': "Toshkent-2022",'page': 105 },
+        {   'id': 9,'question': "9. Vaqtinchlik yo’llar odatdan nechta tomonlama bo’ladi .",
+            'options': [ "2", "3", "4" ],'correct_answer': "2", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 10,'question': "10. Qurilish bosh tarhi tarkibida qurilishga oid avtomobil yo’llarini loyihalash necha ketma ketlikda amalga oshiriladi",
+            'options': [ "6 ta", "7 ta", "5 ta" ],'correct_answer': "6 ta", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 11,'question': "11. Vaqtinchalik yo’llar ombor maydonlarida qancha masofa uzoqlikda joylashtirlishi kerak",
+            'options': [ "0.5-1.0 m", "0.6-1.2 m", "0.5-1.2 m" ],'correct_answer': "0.5-1.0 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 12,'question': "12. Vaqtinchalik yo’llar temir yo’l o’qigacha qancha masofa uzoqlikda joylashtirlishi kerak",
+            'options': [ "3.75 m", "3.85 m", "3.95 m" ],'correct_answer': "3.75 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 13,'question': "13. Vaqtinchalik yo’llar va ko’tarish qurilmalar oasidagi masofa qancha bo’lishi kerak",
+            'options': [ "6.5-12.5 m", "6.0-12.0 m", "5.0-12.5" ],'correct_answer': "6.5-12.5 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 14,'question': "14. Chuqur va xandaqlar bilan vaqtinchalik yo’llar orasidagi masofa qancha bo’lishi kerak agar grunti tuproqli bo’lsa .",
+            'options': [ "0.5-0.75 m", "0.6-0.7 m", "0.5-0.7 m" ],'correct_answer': "0.5-0.75 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 15,'question': "15. Chuqur va xandaqlar bilan vaqtinchalik yo’llar orasidagi masofa qancha bo’lishi kerak agar grunti qumli bo’lsa .",
+            'options': [ "1.0-1.05 m", "1.2-1.4", "1.0-1.4" ],'correct_answer': "1.0-1.05 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 16,'question': "16. Agar vaqtinchalik yollar bir yo’lakli bo’lsa uning kengligi qancha bolishi kerak",
+            'options': [ "3.5 m", "4.5 m", "3.0 m" ],'correct_answer': "3.5 m", # VAQTINCHA
+            'book': "Test Sheet Image 2",'page': None},
+        {   'id': 17,'question': "17. Agar vaqtinchalik yollar ikki yo’lakli bo’lsa uning kengligi qancha bolishi kerak",
+            'options': [ "6.0 m", "7.0 m", "6.5 m" ],'correct_answer': "6.0 m", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 18,'question': "18. Agar vaqtinchalik yo’llar bir yolakli qilib loyihalansa qanday shakilda bolish kerak",
+            'options': [ "aylana", "to'rt burchak", "uch burchak" ],'correct_answer': "aylana", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 19,'question': "19. Halqa bo’ylab harakatlanilganda bir tomonlama korish imkoniyati 100 m dan kam bo’lmasligi uchun yo’l bo’ylab qanday maydonlar bo’lishi kerak .",
+            'options': [ "eni 6 m uzunligi 12-18 m li maydonlar", "eni 5 m uzunligi 10-18 m li maydonlar", "eni 6.5 m uzunligi 12-18 m li maydonlar" ],'correct_answer': "eni 6 m uzunligi 12-18 m li maydonlar", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 20,'question': "20. Yo’llarning burilish radiusi nimaga bogliq",
+            'options': [ "Avtomobil karvonlarining qayrila olish imkoniyatiga", "avtomobillar soniga", "avtomobilar gabaritiga" ],'correct_answer': "Avtomobil karvonlarining qayrila olish imkoniyatiga", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 21,'question': "21. Burilish aylanasinig taqshqi radiusi tirkamasiz avtomobillar uchun qancha bo’lishi kerak",
+            'options': [ "6-8 m", "7-8 m", "6-7 m" ],'correct_answer': "6-8 m", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 22,'question': "22. Qurilish qatnov yo’llari uchun qancha bo’lishi kerak",
+            'options': [ "12 m", "11 m", "10 m" ],'correct_answer': "12 m", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 23,'question': "23. Vaqtinchlik yo’llar qurilishida odatda tosh shag’allar fraksiyasi necha mm boladi",
+            'options': [ "70mm", "60 mm", "50 mm" ],'correct_answer': "70mm", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 24,'question': "24. Vaqtinchalik yollarga tushayotgan yuk necha tonnadan o’tgandan song temir beton plitalardan foydalanilsa maqsadga muofiq",
+            'options': [ "12 t", "11 t", "13 t" ],'correct_answer': "12 t", # VAQTINCHA
+            'book': "Test Sheet Image 3",'page': None},
+        {   'id': 25,'question': "25. Vaqtinchalik yo’llarda qum qavati qalinligi necha sm",
+            'options': [ "10-25 sm", "12-20", "10-20" ],'correct_answer': "10-25 sm", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 26,'question': "26. Vaqtivchalik yo’llarda foydalaniladigan temir beton plitalarining qalinligi necha sm",
+            'options': [ "16-18 sm", "17-18 sm", "16-20 sm" ],'correct_answer': "16-18 sm", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 27,'question': "27. Qurilishda ombor xo’jaligini loyihalashda necha turdan foydalaniladi",
+            'options': [ "ochiq ,yarim ochiq ,yopiq ombirlar", "yarim ochiq ,yopiq ombirlar", "ochiq ,yarim ochiq" ],'correct_answer': "ochiq ,yarim ochiq ,yopiq ombirlar", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 28,'question': "28. Yopiq omborlar kamida necha m2 bo’lishi kerak",
+            'options': [ "60 m2", "50 m2", "55 m2" ],'correct_answer': "60 m2", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 29,'question': "29. Yopiq omborlarda qanday xom ashyolar saqlanadi",
             'options': [ "O‘lchamlari katta bo‘lmagan asbob-uskunalar, bo‘yoqlar, linoleum, oynalar, maxsus kiyim-bosh va poyafzallar, mix, elektrod", "O‘lchamlari katta bo‘lmagan asbob-uskunalar, bo‘yoqlar, linoleum, oynalar, maxsus kiyim-bosh va poyafzallar, mix, elektrod, temir-beton konstruksiyalar", "Shifer, qoraqog‘oz, bitum, yog‘och-taxta, eshik-deraza, armatura, sement, gips" ],
-            'correct_answer': "O‘lchamlari katta bo‘lmagan asbob-uskunalar, bo‘yoqlar, linoleum, oynalar, maxsus kiyim-bosh va poyafzallar, mix, elektrod",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 30,
-            'question': "30. Ochiq omborlarda qanday xom ashyolar saqlanadi",
+            'correct_answer': "O‘lchamlari katta bo‘lmagan asbob-uskunalar, bo‘yoqlar, linoleum, oynalar, maxsus kiyim-bosh va poyafzallar, mix, elektrod", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 30,'question': "30. Ochiq omborlarda qanday xom ashyolar saqlanadi",
             'options': [ "temir-beton konstruksiyalar, g‘isht, shag‘al", "temir-beton konstruksiyalar, g‘isht, shag‘al ,o‘lchamlari katta bo‘lmagan asbob-uskunalar", "shifer, qoraqog‘oz, bitum, yog‘och-taxta, eshik-deraza, armatura, sement, gips" ],
-            'correct_answer': "temir-beton konstruksiyalar, g‘isht, shag‘al",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 31,
-            'question': "31. Yarim ochiq omborlarda qandau xom ashyolar saqlanadi",
+            'correct_answer': "temir-beton konstruksiyalar, g‘isht, shag‘al", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 31,'question': "31. Yarim ochiq omborlarda qandau xom ashyolar saqlanadi",
             'options': [ "shifer, qoraqog‘oz, bitum, yog‘och-taxta, eshik-deraza, armatura, sement, gips", "temir-beton konstruksiyalar, g‘isht, shag‘al", "bo‘yoqlar, linoleum, oynalar," ],
-            'correct_answer': "shifer, qoraqog‘oz, bitum, yog‘och-taxta, eshik-deraza, armatura, sement, gips",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 32,
-            'question': "32. Barcha turdagi omborlarning maydoni qaysi formula orqali topiladi",
+            'correct_answer': "shifer, qoraqog‘oz, bitum, yog‘och-taxta, eshik-deraza, armatura, sement, gips", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 32,'question': "32. Barcha turdagi omborlarning maydoni qaysi formula orqali topiladi",
             'options': [ "F = Q/q * k", "F = Qum * t*η", "F = Qum/T * t" ],
-            'correct_answer': "F = Q/q * k",
-            'book': "Test Sheet Image 4", 'page': None
-        },
-        {   'id': 33,
-            'question': "33. Omborda saqlanishi lozim bo‘lgan material va konstruksiyalar miqdori qaysi formula yordamida aniqlanadi",
+            'correct_answer': "F = Q/q * k", # VAQTINCHA
+            'book': "Test Sheet Image 4",'page': None},
+        {   'id': 33,'question': "33. Omborda saqlanishi lozim bo‘lgan material va konstruksiyalar miqdori qaysi formula yordamida aniqlanadi",
             'options': [ "Q = Qum/T * t*η", "Q = Qum/T * t", "Q = Q/q * k" ],
             'correct_answer': "Q = Qum/T * t*η", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 34,
-            'question': "34. Qurilishning uzluksizligini ta’minlash uchun qabul qilinadigan zahira kunlar necha kun",
-            'options': [ "3-5 kun", "4-5 kun", "3-6 kun" ],
-            'correct_answer': "3-5 kun",
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 35,
-            'question': "35. Alohida ekstremal sharoitlarda konstruksiyalar zahirasi necha qancha bo’lish kerak",
-            'options': [ "1 oy", "1.5 oy", "2 oy" ],
-            'correct_answer': "1 oy",
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 36,
-            'question': "36. Vaqtinchalik bino bu-",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 34,'question': "34. Qurilishning uzluksizligini ta’minlash uchun qabul qilinadigan zahira kunlar necha kun",
+            'options': [ "3-5 kun", "4-5 kun", "3-6 kun" ],'correct_answer': "3-5 kun",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 35,'question': "35. Alohida ekstremal sharoitlarda konstruksiyalar zahirasi necha qancha bo’lish kerak",
+            'options': [ "1 oy", "1.5 oy", "2 oy" ],'correct_answer': "1 oy",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 36,'question': "36. Vaqtinchalik bino bu-",
             'options': [ "bu loyiha tarkibiga kiritilgan obyektlarni barpo qilish jarayonida kerak bo’lgan binolarga aytiladi", "bu loyiha tarkibiga kiritilgan obyektlarni barpo qilish jarayonida kerak bo’lgan xonalarga aytiladi", "bu loyiha tarkibiga kiritilgan binolar" ],
             'correct_answer': "bu loyiha tarkibiga kiritilgan obyektlarni barpo qilish jarayonida kerak bo’lgan binolarga aytiladi", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 37,
-            'question': "37. Foydalanishga mo’ljallanishi bo’yicha vaqtinchalik binolar qaysilar",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 37,'question': "37. Foydalanishga mo’ljallanishi bo’yicha vaqtinchalik binolar qaysilar",
             'options': [ "ishlab chiqarish ,mamuriy ,ombor ,sanitariyava maishiy hizmat ,yashash va ijtimoiy maqsadlarda", "turli ustaxonalar, armaturaga ishlov berish, qolib yasash", "kiyim almashtirish ,kitimlarni quritish ,cho’milish,oshxona tamaddinxona tibbiy punkit" ],
             'correct_answer': "ishlab chiqarish ,mamuriy ,ombor ,sanitariyava maishiy hizmat ,yashash va ijtimoiy maqsadlarda", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 38,
-            'question': "38. Vaqtinchalik ishlab chiqarish binolari deb qanday binolarga aytiladi",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 38,'question': "38. Vaqtinchalik ishlab chiqarish binolari deb qanday binolarga aytiladi",
             'options': [ "turli ustaxonalar, armaturaga ishlov berish, qolib yasash", "ishlab chiqarish ,mamuriy ,ombor ,sanitariyava maishiy hizmat ,yashash va ijtimoiy maqsadlarda", "uchastka boshlig’i xonasi,ish boshqaruvchi idorasi xonasi ,dispechirlik xonasi" ],
             'correct_answer': "turli ustaxonalar, armaturaga ishlov berish, qolib yasash", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 39,
-            'question': "39. Mamuriy binolar deb qanday binolarga aytiladi",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 39,'question': "39. Mamuriy binolar deb qanday binolarga aytiladi",
             'options': [ "uchastka boshlig’i xonasi,ish boshqaruvchi idorasi xonasi ,dispechirlik xonasi", "turli ustaxonalar, armaturaga ishlov berish, qolib yasash", "kiyim almashtirish ,kitimlarni quritish ,cho’milish,oshxona tamaddinxona tibbiy punkit" ],
             'correct_answer': "uchastka boshlig’i xonasi,ish boshqaruvchi idorasi xonasi ,dispechirlik xonasi", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 40,
-            'question': "40. Sanitariya maishiy turmush maqsadlaridagibinolar bu-",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 40,'question': "40. Sanitariya maishiy turmush maqsadlaridagibinolar bu-",
             'options': [ "kiyim almashtirish ,kitimlarni quritish ,cho’milish,oshxona tamaddinxona tibbiy punkit", "turli ustaxonalar, armaturaga ishlov berish, qolib yasash" ],
             'correct_answer': "kiyim almashtirish ,kitimlarni quritish ,cho’milish,oshxona tamaddinxona tibbiy punkit", # VAQTINCHA
-            'book': "Test Sheet Image 5", 'page': None
-        },
-        {   'id': 41,
-            'question': "41. Yashash maqsadlaridagi va ijtimoiy binolar deb-",
+            'book': "Test Sheet Image 5",'page': None},
+        {   'id': 41,'question': "41. Yashash maqsadlaridagi va ijtimoiy binolar deb-",
             'options': [ "yotoqxona ,magazinlar ,oshxona hammom, klublar", "turli ustaxonalar, armaturaga ishlov berish, qolib yasash", "kiyim almashtirish ,kitimlarni quritish ,cho’milish,oshxona tamaddinxona tibbiy punkit" ],
             'correct_answer': "yotoqxona ,magazinlar ,oshxona hammom, klublar", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 42,
-            'question': "42. Konstruksiya yechimlari,qurilish usullari va foydalanish boyicha vaqtinchalik binolar nech turga bo’linadi",
-            'options': [ "2", "3", "4" ],
-            'correct_answer': "2", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 43,
-            'question': "43. Invertar binolar deb –",
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 42,'question': "42. Konstruksiya yechimlari,qurilish usullari va foydalanish boyicha vaqtinchalik binolar nech turga bo’linadi",
+            'options': [ "2", "3", "4" ],'correct_answer': "2", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 43,'question': "43. Invertar binolar deb –",
             'options': [ "ko’p martalik foydalanish va turli xil obyektlarda ishlatish uchun quruluvchi turga aytiladi", "bir marta foydalaniladigan vaqtinchalik binolar", "turli xil obyektlarda ishlatish uchun quruluvchi binolarga aytiladi" ],
             'correct_answer': "ko’p martalik foydalanish va turli xil obyektlarda ishlatish uchun quruluvchi turga aytiladi", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 44,
-            'question': "44. Vaqtinchalik kiyinish xonasida bitta ishchi uchun necha m2 maydon ajratiladi",
-            'options': [ "0.9 m2.", "1.0 m2.", "1.2 m2." ],
-            'correct_answer': "0.9 m2.", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 45,
-            'question': "45. Vaqtinchalik dam olish va ovqatlanish binolarida bitta ishchi uchun necha m2 maydon ajratiladi",
-            'options': [ "1 m2.", "0.8 m2.", "1.2 m2." ],
-            'correct_answer': "1 m2.", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 46,
-            'question': "46 Tibbiyot punktlari ish joyidan necha metr uzoqlikdan oshmasligi kerak",
-            'options': [ "600-800 m", "700-900 m", "500-700 m" ],
-            'correct_answer': "600-800 m", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 47,
-            'question': "47. Qurilishda odamlar soni necha donadan oshganda so’ng felsherlik punktlari loyihalanishi kerak",
-            'options': [ "300 -800 ta", "200 -700 ta", "400 -900 ta" ],
-            'correct_answer': "300 -800 ta", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 48,
-            'question': "48. Qurilishda odamlar soni necha donadan oshganda so’ng shifokorlik tibbiy punktlari loyihalanishi kerak",
-            'options': [ "800-2000ta", "900-2000ta", "700-1800ta" ],
-            'correct_answer': "800-2000ta", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 49,
-            'question': "49. Binolardan tashqarida joylashtirilgan hojatxonalar ish joyidan necha metr uzoq masofada joylashishi mumkin",
-            'options': [ "200 m", "400 m", "300 m" ],
-            'correct_answer': "200 m", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 50,
-            'question': "50. Qurilish xo‘jaligiga servis xizmatlariini ko‘rsatish, qurilish maydonidagi barcha qurilmalar va tuzilmalarni yaratish va ularga xizmat ko‘rsatilish kim tomonida bajariladi",
-            'options': [ "bosh pudratchi", "loyihachi", "sub pudratchi" ],
-            'correct_answer': "bosh pudratchi", # VAQTINCHA
-            'book': "Test Sheet Image 6", 'page': None
-        },
-        {   'id': 51,
-            'question': "51. Zamonaviy qurilishda band bo‘lgan har bir ishchi-xodimga bir yilda sarflanadigan elektr energiyasi necha kVt-soatdan ortiq",
-            'options': [ "4000 kVt-soatdan ortiq", "4000 kVt-soatdan kam", "4000 kVt-soat" ],
-            'correct_answer': "4000 kVt-soatdan ortiq", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 52,
-            'question': "52. Qurilishda vaqtinchalik elektr ta’minotini loyihalash nechata tartibda amalga oshiriladi:",
-            'options': [ "5ta", "6ta", "7ta" ],
-            'correct_answer': "5ta", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 53,
-            'question': "53. Hisoblangan elektr yuklamasini necha usullar yoramida aniqlash mumkin.",
-            'options': [ "4 ta", "5 ta", "3ta" ],
-            'correct_answer': "4 ta", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 54,
-            'question': "54. Quydagi formula qurilishdagi qanday talabni toppish uchun ishlatiladi R = 1.1 [ Σ(Pm*K1/cosφ) + Σ(Pt*K2/cosφ) + ΣPw*k3 + ΣPtash*k4 ]",
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 44,'question': "44. Vaqtinchalik kiyinish xonasida bitta ishchi uchun necha m2 maydon ajratiladi",
+            'options': [ "0.9 m2.", "1.0 m2.", "1.2 m2." ],'correct_answer': "0.9 m2.", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 45,'question': "45. Vaqtinchalik dam olish va ovqatlanish binolarida bitta ishchi uchun necha m2 maydon ajratiladi",
+            'options': [ "1 m2.", "0.8 m2.", "1.2 m2." ],'correct_answer': "1 m2.", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 46,'question': "46 Tibbiyot punktlari ish joyidan necha metr uzoqlikdan oshmasligi kerak",
+            'options': [ "600-800 m", "700-900 m", "500-700 m" ],'correct_answer': "600-800 m", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 47,'question': "47. Qurilishda odamlar soni necha donadan oshganda so’ng felsherlik punktlari loyihalanishi kerak",
+            'options': [ "300 -800 ta", "200 -700 ta", "400 -900 ta" ],'correct_answer': "300 -800 ta", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 48,'question': "48. Qurilishda odamlar soni necha donadan oshganda so’ng shifokorlik tibbiy punktlari loyihalanishi kerak",
+            'options': [ "800-2000ta", "900-2000ta", "700-1800ta" ],'correct_answer': "800-2000ta", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 49,'question': "49. Binolardan tashqarida joylashtirilgan hojatxonalar ish joyidan necha metr uzoq masofada joylashishi mumkin",
+            'options': [ "200 m", "400 m", "300 m" ],'correct_answer': "200 m", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 50,'question': "50. Qurilish xo‘jaligiga servis xizmatlariini ko‘rsatish, qurilish maydonidagi barcha qurilmalar va tuzilmalarni yaratish va ularga xizmat ko‘rsatilish kim tomonida bajariladi",
+            'options': [ "bosh pudratchi", "loyihachi", "sub pudratchi" ],'correct_answer': "bosh pudratchi", # VAQTINCHA
+            'book': "Test Sheet Image 6",'page': None},
+        {   'id': 51,'question': "51. Zamonaviy qurilishda band bo‘lgan har bir ishchi-xodimga bir yilda sarflanadigan elektr energiyasi necha kVt-soatdan ortiq",
+            'options': [ "4000 kVt-soatdan ortiq", "4000 kVt-soatdan kam", "4000 kVt-soat" ],'correct_answer': "4000 kVt-soatdan ortiq", # VAQTINCHA
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 52,'question': "52. Qurilishda vaqtinchalik elektr ta’minotini loyihalash nechata tartibda amalga oshiriladi:",
+            'options': [ "5ta", "6ta", "7ta" ],'correct_answer': "5ta", # VAQTINCHA
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 53,'question': "53. Hisoblangan elektr yuklamasini necha usullar yoramida aniqlash mumkin.",
+            'options': [ "4 ta", "5 ta", "3ta" ],'correct_answer': "4 ta", # VAQTINCHA
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 54,'question': "54. Quydagi formula qurilishdagi qanday talabni toppish uchun ishlatiladi R = 1.1 [ Σ(Pm*K1/cosφ) + Σ(Pt*K2/cosφ) + ΣPw*k3 + ΣPtash*k4 ]",
             'options': [ "vaqtinchalik elektr energiyasiga bo’lgan talab", "vaqtinchalik yorug’likka bo’lgan talabni", "Vatinchalik suv taminotini" ],
             'correct_answer': "vaqtinchalik elektr energiyasiga bo’lgan talab", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 55,
-            'question': "55. Qurilish maydoniga kerak bo’ladigan chiroqlarning soni qaysi formula orqali aniqlanadi",
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 55,'question': "55. Qurilish maydoniga kerak bo’ladigan chiroqlarning soni qaysi formula orqali aniqlanadi",
             'options': [ "n = (E*S*m*k) / (F*η)", "n = (E*S*k) / (F*η)", "n = (S*m*k) / (F*η)" ],
             'correct_answer': "n = (E*S*m*k) / (F*η)", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 56,
-            'question': "56. n = (E*S*m*k) / (F*η) bu formuladagi E ni qiymati necha lk ga teng",
-            'options': [ "0.2 lk", "0.3 lk", "0.25 lk" ],
-            'correct_answer': "0.2 lk", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 57,
-            'question': "57. Ob’yektni qurishga oid bo‘lgan tayyorgarlik ishlari qanday turlarga bo’linadi",
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 56,'question': "56. n = (E*S*m*k) / (F*η) bu formuladagi E ni qiymati necha lk ga teng",
+            'options': [ "0.2 lk", "0.3 lk", "0.25 lk" ],'correct_answer': "0.2 lk", # VAQTINCHA
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 57,'question': "57. Ob’yektni qurishga oid bo‘lgan tayyorgarlik ishlari qanday turlarga bo’linadi",
             'options': [ "qurilish maydonidan tashqarida va maydon ichida bajariladigan ishlar", "qurilish maydonidan tashqarida", "maydon ichida bajariladigan ishlar" ],
             'correct_answer': "qurilish maydonidan tashqarida va maydon ichida bajariladigan ishlar", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 58,
-            'question': "58. Maydondan tashqarisida amalga oshiriladigan tayyorgarlik ishlari quyidagilarni o‘z ichiga oladi",
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 58,'question': "58. Maydondan tashqarisida amalga oshiriladigan tayyorgarlik ishlari quyidagilarni o‘z ichiga oladi",
             'options': [ "qurilish ob’yektiga olib boradigan yo‘llarni yotqizish, elektr uzatish va telefonlashtirish liniyalarini o‘tkazish, suv ta’minoti, kanalizatsiya va yomg‘ir suvlari oqiziladigan tarmoqlarni o‘tkazishni, zarur bo‘lganda – quruvchilar uchun turar-joy posyolkalari va qurilish hamda montaj tashkilotlarining ishlab chiqarish bazalarini qurish.", "elektr uzatish va telefonlashtirish liniyalarini o‘tkazish, suv ta’minoti, kanalizatsiya va yomg‘ir suvlari oqiziladigan tarmoqlarni o‘tkazishni, zarur bo‘lganda – quruvchilar uchun turar joy posyolkalari va qurilish hamda montaj tashkilotlarining ishlab chiqarish bazalarini qurish.", "qurilish ob’yektiga olib boradigan yo‘llarni yotqizish ,suv ta’minoti, kanalizatsiya va yomg‘ir suvlari oqiziladigan tarmoqlarni o‘tkazishni, zarur bo‘lganda – quruvchilar uchun turar joy posyolkalari va qurilish hamda montaj tashkilotlarining ishlab chiqarish bazalarini qurish." ],
             'correct_answer': "qurilish ob’yektiga olib boradigan yo‘llarni yotqizish, elektr uzatish va telefonlashtirish liniyalarini o‘tkazish, suv ta’minoti, kanalizatsiya va yomg‘ir suvlari oqiziladigan tarmoqlarni o‘tkazishni, zarur bo‘lganda – quruvchilar uchun turar-joy posyolkalari va qurilish hamda montaj tashkilotlarining ishlab chiqarish bazalarini qurish.", # VAQTINCHA
-            'book': "Test Sheet Image 7", 'page': None
-        },
-        {   'id': 59,
-            'question': "59. Maydon ichidagi tayyorgarlik ishlariga quyidagilar kiradi:",
+            'book': "Test Sheet Image 7",'page': None},
+        {   'id': 59,'question': "59. Maydon ichidagi tayyorgarlik ishlariga quyidagilar kiradi:",
             'options': [ "maydonda gruntning muhandislik-geologik xossalarini o‘rganish; geodezik rejalash asosini yaratish; maydonni undagi qurilish ishlarini amalga oshirish uchun bo‘shatish – hududni tozalash, undagi keraksiz qurilma va konstruksiyalarni buzib olib tashlash; hududni tekislash; yer usti va yer osti suvlarini tashqariga chiqarish, zarur bo‘lganda yer osti suvlari sathini sun’iy pasaytirish; muhandislik tarmoqlarining mavjudlarini qayta o‘tkazish va yangilarini yotqizish; doimiy va vaqtincha yo‘llarni qurish; qurilish maydonini elektr energiyasi bilan (xususan, sun’iy yoritish bilan) ta’minlash; vaqtincha to‘siqlar o‘rnatish; qurilishni yong‘inga qarshi suv ta’minoti va asbob-anjom bilan ta’minlash.", "maydonni undagi qurilish ishlarini amalga oshirish uchun bo‘shatish – hududni tozalash, undagi keraksiz qurilma va konstruksiyalarni buzib olib tashlash; hududni tekislash; yer usti va yer osti suvlarini tashqariga chiqarish, zarur bo‘lganda yer osti suvlari sathini sun’iy pasaytirish; muhandislik tarmoqlarining mavjudlarini qayta o‘tkazish va yangilarini yotqizish; doimiy va vaqtincha yo‘llarni qurish; qurilish maydonini elektr energiyasi bilan ta’minlash; vaqtincha to‘siqlar o‘rnatish; qurilishni yong‘inga qarshi suv ta’minoti va asbob-anjom bilan ta’minlash.", "maydonda gruntning muhandislik-geologik xossalarini o‘rganish; geodezik rejalash asosini yaratish; maydonni undagi qurilish ishlarini amalga oshirish uchun bo‘shatish – hududni tozalash, undagi keraksiz qurilma va konstruksiyalarni buzib olib tashlash; hududni tekislash; yer usti va yer osti suvlarini tashqariga chiqarish, zarur bo‘lganda yer osti suvlari sathini sun’iy pasaytirish; muhandislik tarmoqlarining mavjudlarini qayta o‘tkazish va yangilarini yotqizish; doimiy va vaqtincha yo‘llarni qurish; qurilish maydonini elektr energiyasi bilan (xususan, sun’iy yoritish bilan) ta’minlash; vaqtincha to‘siqlar o‘rnatish;" ],
             'correct_answer': "maydonda gruntning muhandislik-geologik xossalarini o‘rganish; geodezik rejalash asosini yaratish; maydonni undagi qurilish ishlarini amalga oshirish uchun bo‘shatish – hududni tozalash, undagi keraksiz qurilma va konstruksiyalarni buzib olib tashlash; hududni tekislash; yer usti va yer osti suvlarini tashqariga chiqarish, zarur bo‘lganda yer osti suvlari sathini sun’iy pasaytirish; muhandislik tarmoqlarining mavjudlarini qayta o‘tkazish va yangilarini yotqizish; doimiy va vaqtincha yo‘llarni qurish; qurilish maydonini elektr energiyasi bilan (xususan, sun’iy yoritish bilan) ta’minlash; vaqtincha to‘siqlar o‘rnatish; qurilishni yong‘inga qarshi suv ta’minoti va asbob-anjom bilan ta’minlash.", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 60,
-            'question': "60. Yoritish uskunalari ishlatilish sohalariga ko’ra shartli ravishda uchga bo’linadi.",
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 60,'question': "60. Yoritish uskunalari ishlatilish sohalariga ko’ra shartli ravishda uchga bo’linadi.",
             'options': [ "yoyib beruvchi, yo’naltirilgan va maxsus effekt chiroqlari.", "yoyib beruvchi, yo’naltirilgan", "maxsus effekt chiroqlari." ],
             'correct_answer': "yoyib beruvchi, yo’naltirilgan va maxsus effekt chiroqlari.", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 61,
-            'question': "61. Vaqtinchalik issiqlik taminotini loyihalash necha bosqichda amalga oshiriladi.",
-            'options': [ "4 ta", "5 ta", "3 ta" ],
-            'correct_answer': "4 ta", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 62,
-            'question': "62. Issiqlikka bo’lgan umumiy talab qanday aniqlanadi.",
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 61,'question': "61. Vaqtinchalik issiqlik taminotini loyihalash necha bosqichda amalga oshiriladi.",
+            'options': [ "4 ta", "5 ta", "3 ta" ],'correct_answer': "4 ta", # VAQTINCHA
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 62,'question': "62. Issiqlikka bo’lgan umumiy talab qanday aniqlanadi.",
             'options': [ "Qumumiy = (Qisitish + Qtexnik + Qquritish)k1k2", "Qumumiy = (Qisitish + Qtexnik + Qquritish)k1", "Qumumiy = (Qisitish + Qtexnik + Qquritish)k2" ],
             'correct_answer': "Qumumiy = (Qisitish + Qtexnik + Qquritish)k1k2", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 63,
-            'question': "63. Issiqlik qanday o’lchov birligi bilan o’lchanadi",
-            'options': [ "Joul J", "vatt W", "lyuks Lk" ],
-            'correct_answer': "Joul J", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 64,
-            'question': "64. Vaqtinchalik issiqlik o’choqlarida isitiluvchi umumiy yuza qanday aniqlanadi",
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 63,'question': "63. Issiqlik qanday o’lchov birligi bilan o’lchanadi",
+            'options': [ "Joul J", "vatt W", "lyuks Lk" ],'correct_answer': "Joul J", # VAQTINCHA
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 64,'question': "64. Vaqtinchalik issiqlik o’choqlarida isitiluvchi umumiy yuza qanday aniqlanadi",
             'options': [ "F=1.2Qumumiy / q", "F=1.2Qumumiy / k1", "F=1.2Qumumiy / k2" ],
             'correct_answer': "F=1.2Qumumiy / q", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 65,
-            'question': "65. Vaqtinchalik isitish agregatlari qanday turdagi yoqilg’ilardan foydalaniladi",
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 65,'question': "65. Vaqtinchalik isitish agregatlari qanday turdagi yoqilg’ilardan foydalaniladi",
             'options': [ "gaz ,suyuqlik ,qattiq va elektr energiyasidan", "qattiq va elektr energiyasidan" ],
             'correct_answer': "gaz ,suyuqlik ,qattiq va elektr energiyasidan", # VAQTINCHA
-            'book': "Test Sheet Image 8", 'page': None
-        },
-        {   'id': 66,
-            'question': "66. Qurilishda vaqtinchalik suv tarmogi qanday maqsadlarda foydalaniladi.",
+            'book': "Test Sheet Image 8",'page': None},
+        {   'id': 66,'question': "66. Qurilishda vaqtinchalik suv tarmogi qanday maqsadlarda foydalaniladi.",
             'options': [ "ishlab chiqarish,maishiy turmush ,yong’inga qarshi", "ishlab chiqarish,maishiy turmush", "maishiy turmush ,yong’inga qarshi." ],
             'correct_answer': "ishlab chiqarish,maishiy turmush ,yong’inga qarshi", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 67,
-            'question': "67. Qurilishda vaqtinchalik suv tarmog’i qanday o’lchov birligi bilan o’lchanadi.",
-            'options': [ "l/s", "l", "s" ],
-            'correct_answer': "l/s", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 68,
-            'question': "68. Qurilish maydono 10 gektar gacha bo’lsa qanday birlikdagi gidrant qo’yish kerak",
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 67,'question': "67. Qurilishda vaqtinchalik suv tarmog’i qanday o’lchov birligi bilan o’lchanadi.",
+            'options': [ "l/s", "l", "s" ],'correct_answer': "l/s", # VAQTINCHA
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 68,'question': "68. Qurilish maydono 10 gektar gacha bo’lsa qanday birlikdagi gidrant qo’yish kerak",
             'options': [ "5 l/s birlikka ega 2ta", "10 l/s birlikka ega 2ta", "5 l/s birlikka ega 1ta" ],
             'correct_answer': "5 l/s birlikka ega 2ta", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 69,
-            'question': "69. Qurilish maydono 50 gektar gacha bo’lsa qanday birlikdagi gidrant qo’yish kerak",
-            'options': [ "20 l/s", "10 l/s", "15 l/s" ],
-            'correct_answer': "20 l/s", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 70,
-            'question': "70. D = √4∙Qumumiy ∙ 1000 / π∙ϑ Bu formula oraqli qanday kattali qanilanadi",
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 69,'question': "69. Qurilish maydono 50 gektar gacha bo’lsa qanday birlikdagi gidrant qo’yish kerak",
+            'options': [ "20 l/s", "10 l/s", "15 l/s" ],'correct_answer': "20 l/s", # VAQTINCHA
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 70,'question': "70. D = √4∙Qumumiy ∙ 1000 / π∙ϑ Bu formula oraqli qanday kattali qanilanadi",
             'options': [ "Suv o‘tkaziluvchi quvurlarni", "kanalizatsiya quvurlari", "Gaz otkazuvchi quvurlar" ],
             'correct_answer': "Suv o‘tkaziluvchi quvurlarni", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 71,
-            'question': "71. D = √4∙Qumumiy ∙ 1000 / π∙ϑ Bu formuladagi ϑ qanday kattalik",
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 71,'question': "71. D = √4∙Qumumiy ∙ 1000 / π∙ϑ Bu formuladagi ϑ qanday kattalik",
             'options': [ "suvning quvurlar bo‘ylab harakatlanish tezligi", "suvning hajmi", "quvurning hajmi" ],
             'correct_answer': "suvning quvurlar bo‘ylab harakatlanish tezligi", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 72,
-            'question': "72. Yong‘inga qarshi quduqlar va gidrantlar ulardan suv shlanglarini ehtimollikdagi yong‘in chiqishi sohalarigacha bo‘lgan masofaga qancha bolish kerak",
-            'options': [ "150 m", "140 m", "160 m" ],
-            'correct_answer': "150 m", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 73,
-            'question': "73. Siqilgan havoning talab qilinuvchi miqdori qanday aniqlanadi",
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 72,'question': "72. Yong‘inga qarshi quduqlar va gidrantlar ulardan suv shlanglarini ehtimollikdagi yong‘in chiqishi sohalarigacha bo‘lgan masofaga qancha bolish kerak",
+            'options': [ "150 m", "140 m", "160 m" ],'correct_answer': "150 m", # VAQTINCHA
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 73,'question': "73. Siqilgan havoning talab qilinuvchi miqdori qanday aniqlanadi",
             'options': [ "Qhisoblangan = 1,1 ∙ ∑k ∙ g ∙ n", "Qhisoblangan = 1,1 ∙ ∑k ∙ g", "Qhisoblangan = 1,1 ∙ ∑k ∙ n" ],
             'correct_answer': "Qhisoblangan = 1,1 ∙ ∑k ∙ g ∙ n", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 74,
-            'question': "74. Suvning qurilish maydonidagi sarflarini shartli ravishda necha guruhga bo‘lish mumkin",
-            'options': [ "3ta", "4 ta", "5ta" ],
-            'correct_answer': "3ta", # VAQTINCHA
-            'book': "Test Sheet Image 9", 'page': None
-        },
-        {   'id': 75,
-            'question': "75. Qurilish maydonidagi vaqtinchalik suvning sarflanishi qaysi formula yordamida hisoblanadi.",
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 74,'question': "74. Suvning qurilish maydonidagi sarflarini shartli ravishda necha guruhga bo‘lish mumkin",
+            'options': [ "3ta", "4 ta", "5ta" ],'correct_answer': "3ta", # VAQTINCHA
+            'book': "Test Sheet Image 9",'page': None},
+        {   'id': 75,'question': "75. Qurilish maydonidagi vaqtinchalik suvning sarflanishi qaysi formula yordamida hisoblanadi.",
             'options': [ "q= qen + 0,5 ∑ q2,", "q= (a*Num*K2) / 3600t", "q= ΣPQK1 / 3600t" ],
             'correct_answer': "q= qen + 0,5 ∑ q2,", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 76,
-            'question': "76. Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi qaysi",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 76,'question': "76. Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi qaysi",
             'options': [ "q= ΣPQK1 / 3600t", "q = (a*Num*K2) / 3600t", "Q=0.4*c*Num/60m" ],
             'correct_answer': "q= ΣPQK1 / 3600t", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 77,
-            'question': "77. Xo‘jalik ehtiyojlari uchun suvning sarfi qanday hisoblanadi",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 77,'question': "77. Xo‘jalik ehtiyojlari uchun suvning sarfi qanday hisoblanadi",
             'options': [ "q =a·Num·K2 / 3600t", "q= ΣPQK1 / 3600t", "Q =0.4·c·Num/60m" ],
             'correct_answer': "q =a·Num·K2 / 3600t", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 78,
-            'question': "78. Dush qurilmalari uchun suvning sarfi qanday hisoblanad",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 78,'question': "78. Dush qurilmalari uchun suvning sarfi qanday hisoblanad",
             'options': [ "Q =0.4·c·Num/60m", "q =a·Num·K2 / 3600t", "q= ΣPQK1 / 3600t" ],
             'correct_answer': "Q =0.4·c·Num/60m", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 79,
-            'question': "79. Qurilishda dush qabul qilish uchun bir kishiga suv sarfi meyori necha litr",
-            'options': [ "30 l", "25 l", "35 l" ],
-            'correct_answer': "30 l", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 80,
-            'question': "80. Qurilishda dush qabul qilish davomiyligi meyori necha daqiqa",
-            'options': [ "45 min", "40 min", "35 min" ],
-            'correct_answer': "45 min", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 81,
-            'question': "81. q= ΣQK3 / 3600t formula orqani qanday kattalikni aniqlaymiz",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 79,'question': "79. Qurilishda dush qabul qilish uchun bir kishiga suv sarfi meyori necha litr",
+            'options': [ "30 l", "25 l", "35 l" ],'correct_answer': "30 l", # VAQTINCHA
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 80,'question': "80. Qurilishda dush qabul qilish davomiyligi meyori necha daqiqa",
+            'options': [ "45 min", "40 min", "35 min" ],'correct_answer': "45 min", # VAQTINCHA
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 81,'question': "81. q= ΣQK3 / 3600t formula orqani qanday kattalikni aniqlaymiz",
             'options': [ "mashina mexanizimlarning suv sarfini", "dush qurilmalari uchun suvning sarfini", "xo‘jalik ehtiyojlari uchun suvning sarfini" ],
             'correct_answer': "mashina mexanizimlarning suv sarfini", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 82,
-            'question': "82. Q =0.4·c·Num/60m yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 82,'question': "82. Q =0.4·c·Num/60m yuqoridagi formula orqali qanday kattalik aniqlanadi",
             'options': [ "Dush qurilmalari uchun suvning sarfi", "Xo‘jalik ehtiyojlari uchun suvning sarfi", "Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi" ],
             'correct_answer': "Dush qurilmalari uchun suvning sarfi", # VAQTINCHA
-            'book': "Test Sheet Image 10", 'page': None
-        },
-        {   'id': 83,
-            'question': "83. Qurilish sanoati bevosita halq ho’jaligining asosiy ishlab chiqarishiga oid fondinig necha foizini tashkil ?",
-            'options': [ "20%", "15%", "25%" ],
-            'correct_answer': "20%",
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 84,
-            'question': "84. Sanoat miqiyosida sementning necha foizini qurilish sanoatida ishlatiladi",
-            'options': [ "75%", "65%", "70%" ],
-            'correct_answer': "75%",
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 85,
-            'question': "85. Yog’och matariallarning necha foizi qurilishda ishlatiladi",
-            'options': [ "40%", "60%", "50%" ],
-            'correct_answer': "40%",
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 86,
-            'question': "86. Qurilish obyektiga olib kelinuvchi moddiy resurslarning umumiy qiymati quydagi qiymatlarning yigindisidan tashkil topadi bular qaysilar?",
+            'book': "Test Sheet Image 10",'page': None},
+        {   'id': 83,'question': "83. Qurilish sanoati bevosita halq ho’jaligining asosiy ishlab chiqarishiga oid fondinig necha foizini tashkil ?",
+            'options': [ "20%", "15%", "25%" ],'correct_answer': "20%", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 84,'question': "84. Sanoat miqiyosida sementning necha foizini qurilish sanoatida ishlatiladi",
+            'options': [ "75%", "65%", "70%" ],'correct_answer': "75%", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 85,'question': "85. Yog’och matariallarning necha foizi qurilishda ishlatiladi",
+            'options': [ "40%", "60%", "50%" ],'correct_answer': "40%", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 86,'question': "86. Qurilish obyektiga olib kelinuvchi moddiy resurslarning umumiy qiymati quydagi qiymatlarning yigindisidan tashkil topadi bular qaysilar?",
             'options': [ "Sotib olish qiymati,yetkazib berish ,saqlash qiymati,kamomat va yo’qotishlar qiymati.", "saqlash qiymati,kamomat va yo’qotishlar qiymati", "Sotib olish qiymati,yetkazib berish ,saqlash qiymati," ],
             'correct_answer': "Sotib olish qiymati,yetkazib berish ,saqlash qiymati,kamomat va yo’qotishlar qiymati.", # VAQTINCHA
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 87,
-            'question': "87. Lagistika bu—",
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 87,'question': "87. Lagistika bu—",
             'options': [ "buyurtmalarni taqsimlash, ularni tayyorlash,tashib keltirish omborga joylashtirish saqlash va mahsulotlarni bururtmachining talablariga mos ravishda istemolchigacha yetkazib berilishida boshq turdagi moddiy va nomoddiy operatsiyalarni rejalashtirish nazorat qilish va boshqarish", "Qurilish materiallarini tashish", "ularni tayyorlash,tashib keltirish omborga joylashtirish saqlash va mahsulotlarni bururtmachining talablariga mos ravishda istemolchigacha yetkazib berilishida boshq turdagi moddiy va nomoddiy operatsiyalarni rejalashtirish nazorat qilish va boshqarish" ],
             'correct_answer': "buyurtmalarni taqsimlash, ularni tayyorlash,tashib keltirish omborga joylashtirish saqlash va mahsulotlarni bururtmachining talablariga mos ravishda istemolchigacha yetkazib berilishida boshq turdagi moddiy va nomoddiy operatsiyalarni rejalashtirish nazorat qilish va boshqarish", # VAQTINCHA
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 88,
-            'question': "88. Texnologik jamlash ---bu",
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 88,'question': "88. Texnologik jamlash ---bu",
             'options': [ "qurilish obyektlarini ,yig’ma konstruksiyalar ,alohida qismlar ,yarim tayyor mahsulotlar va materiallar bilan ishlarning surati va texnologik uzviyligiga rioya qilgan holda jamlanma tarzida taminlash jarayoni hisoblanadi .", "alohida qismlar ,yarim tayyor mahsulotlar va materiallar bilan ishlarning surati va texnologik uzviyligiga rioya qilgan holda jamlanma tarzida taminlash jarayoni hisoblanadi .", "Materiallarni bir joyda bo’lishi" ],
             'correct_answer': "qurilish obyektlarini ,yig’ma konstruksiyalar ,alohida qismlar ,yarim tayyor mahsulotlar va materiallar bilan ishlarning surati va texnologik uzviyligiga rioya qilgan holda jamlanma tarzida taminlash jarayoni hisoblanadi .", # VAQTINCHA
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 89,
-            'question': "89. Transport vositalarini tanlash nechta omillarga bog‘liq:",
-            'options': [ "10ta", "11 ta", "9 ta" ],
-            'correct_answer': "10ta",
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 90,
-            'question': "90. Qurilishda transport vositalarini baholaydigan asosiy mezonlarni uch guruhga ajratish mumkin: bular qaysilar",
-            'options': [ "texnik,texnologik,iqtisodiy", "texnik,texnologik", "texnologik,iqtisodiy" ],
-            'correct_answer': "texnik,texnologik,iqtisodiy",
-            'book': "Test Sheet Image 11", 'page': None
-        },
-        {   'id': 91,
-            'question': "91. Avtomobil transportidan barcha xildagi yuklarni necha km gacha tashish tavsiya beriladi",
-            'options': [ "200 km", "150 km", "250 km" ],
-            'correct_answer': "200 km",
-            'book': "Test Sheet Image 11", 'page': None
-        },
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 89,'question': "89. Transport vositalarini tanlash nechta omillarga bog‘liq:",
+            'options': [ "10ta", "11 ta", "9 ta" ],'correct_answer': "10ta", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 90,'question': "90. Qurilishda transport vositalarini baholaydigan asosiy mezonlarni uch guruhga ajratish mumkin: bular qaysilar",
+            'options': [ "texnik,texnologik,iqtisodiy", "texnik,texnologik", "texnologik,iqtisodiy" ],'correct_answer': "texnik,texnologik,iqtisodiy", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 91,'question': "91. Avtomobil transportidan barcha xildagi yuklarni necha km gacha tashish tavsiya beriladi",
+            'options': [ "200 km", "150 km", "250 km" ],'correct_answer': "200 km", # VAQTINCHA
+            'book': "Test Sheet Image 11",'page': None},
+        {   'id': 92,'question': "92. Kurilish mashinalarining harakatiga bog’liq holda qanday turlari bor",
+            'options': [ "statsionar va kuchma, uziyurar va tirkama", "kuchma, uziyurar va tirkama", "statsionar va kuchma, uziyurar" ],
+            'correct_answer': "statsionar va kuchma, uziyurar va tirkama", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 93,'question': "93. Kuch uskunalari jixatdan kurilish mashinalari qanday turlarga bo’linadi",
+            'options': [ "elektrik yuritmalari, ichki yenuv dvigatelli, pnevmatik yuritmali, aralash yuritmali", "elektrik yuritmalari, ichki yenuv dvigatelli,", "pnevmatik yuritmali, aralash yuritmali" ],
+            'correct_answer': "elektrik yuritmalari, ichki yenuv dvigatelli, pnevmatik yuritmali, aralash yuritmali", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 94,'question': "94. qurilish-montaj ishlarini qanday nazoratlari mavjud",
+            'options': [ "tashqi va ichki nazorati", "tashqi nazorati", "ichki nazorati" ],
+            'correct_answer': "tashqi va ichki nazorati", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 95,'question': "95. Tashqi nazoratni nechta davlat idoralari olib boradi",
+            'options': [ "8 ta", "9 ta", "10 ta" ],'correct_answer': "8 ta", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 96,'question': "96. Bajarilayotgan ishlarning texnik nazoratini amalga oshiradi, ularning hajmini, bajarilish muddatlarini tekshiradi, tayyor ob’yektlarni foydalanishga qabul qilishda qaysi nazoartchi organ nazorat qiladi",
+            'options': [ "buyutmachi", "loyihachi", "taminotchi" ],'correct_answer': "buyutmachi", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 97,'question': "97. U barpo qilinayotgan ob’yektning tasdiqlangan loyihaga mos kelishini tekshiradi.Kim?",
+            'options': [ "Mualliflik nazoarti", "Buyurmachi", "Taminotchi" ],'correct_answer': "Mualliflik nazoarti", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 98,'question': "98. Mehnat muhofazasi, mehnat xavfsizligi va mehnat qonunchiligi me’yorlarining bajarilishi ustidan nazorat qiladi.Kim?",
+            'options': [ "Kasaba uyushmalari texnik inspeksiyasi", "Mualliflik nazoarti", "Buyurmachi" ],
+            'correct_answer': "Kasaba uyushmalari texnik inspeksiyasi", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 99,'question': "99. Ichki nazoratning necha turini bilasiz",
+            'options': [ "4ta", "5 ta", "3 ta" ],'correct_answer': "4ta", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 100,'question': "100. Beton bloklardan qurilgan yerto‘la devorlarning vertikal va gorizontal choklarining qalinligi necha mm bo’lishi kerak",
+            'options': [ "15mm", "12mm", "20 mm" ],'correct_answer': "15mm", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 101,'question': "101. Blokli terish qatorlarining 10 m uzunlikdagi chegarada gorizontal bo‘yicha og‘ishi necha mm bo’lishi kerak",
+            'options': [ "15mm", "12mm", "20 mm" ],'correct_answer': "15mm", # VAQTINCHA
+            'book': "Test Sheet Image 12",'page': None},
+        {   'id': 102,'question': "102. Poydevorlar va devorlar konstrukiyalari o‘qlarining siljishi necha mm bo’lishi kerak",
+            'options': [ "±12mm", "±15mm", "±20 mm" ],'correct_answer': "±12mm", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 103,'question': "103. q= qen + 0,5 ∑ q2, yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Qurilish maydonidagi vaqtinchalik suvning sarflanishi", "Xo‘jalik ehtiyojlari uchun suvning sarfi", "Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi" ],
+            'correct_answer': "Qurilish maydonidagi vaqtinchalik suvning sarflanishi", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 104,'question': "104. q= ΣPQK1 / 3600t",
+            'options': [ "Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi", "Qurilish maydonidagi vaqtinchalik suvning sarflanishi", "Xo‘jalik ehtiyojlari uchun suvning sarfi" ],
+            'correct_answer': "Alohida qurilish ishlariga bir smenada sarflanadigan suvning maksimal sarfi", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 105,'question': "105 q =a·Num·K2 / 3600t yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Xo‘jalik ehtiyojlari uchun suvning sarfi", "Qurilish maydonidagi vaqtinchalik suvning sarflanishi", "Xo‘jalik ehtiyojlari uchun suvning sarfi" ], # Duplicate option removed
+            'correct_answer': "Xo‘jalik ehtiyojlari uchun suvning sarfi", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 106,'question': "106. Qhisoblangan = 1,1 ∙ ∑k ∙ g ∙ n yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Siqilgan havoning talab qilinuvchi miqdori", "Xo‘jalik ehtiyojlari uchun suvning sarfi", "Qurilish maydonidagi vaqtinchalik suvning sarflanishi" ],
+            'correct_answer': "Siqilgan havoning talab qilinuvchi miqdori", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 107,'question': "107. F=1.2 Qumumiy/q yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Vaqtinchalik issiqlik o’choqlarida isitiluvchi umumiy yuza", "qurilish maydoning yuzasi", "foydali maydon yuzasi" ],
+            'correct_answer': "Vaqtinchalik issiqlik o’choqlarida isitiluvchi umumiy yuza", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 108,'question': "108. Qumumiy = (Qisitish + Qtexnik + Qquritish)k1k2 yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Issiqlikka bo’lgan umumiy talab", "vaqtinchalik suvga bo’lgan talab", "vaqtinchalik elektrga bo’lgan talab" ],
+            'correct_answer': "Issiqlikka bo’lgan umumiy talab", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 109,'question': "109. n = (E*S*m*k) / (F*η) yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Qurilish maydoniga kerak bo’ladigan chiroqlarning soni", "Qurilish maydonidagi gidrantlar soni", "Qurilish maydonidagi texnikalar soni" ],
+            'correct_answer': "Qurilish maydoniga kerak bo’ladigan chiroqlarning soni", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 110,'question': "110. Q = Qum/T * t*η yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Omborda saqlanishi lozim bo‘lgan material va konstruksiyalar miqdori", "Qurilish maydoniga kerak bo’ladigan chiroqlarning soni", "Qurilish maydonidagi gidrantlar soni" ],
+            'correct_answer': "Omborda saqlanishi lozim bo‘lgan material va konstruksiyalar miqdori", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 111,'question': "111. F = Q/q * k yuqoridagi formula orqali qanday kattalik aniqlanadi",
+            'options': [ "Barcha turdagi omborlarning maydoni", "qurilish maydoning yuzasi", "foydali maydon yuzasi" ],
+            'correct_answer': "Barcha turdagi omborlarning maydoni", # VAQTINCHA
+            'book': "Test Sheet Image 13",'page': None},
+        {   'id': 112,'question': "112. Quyidagilarni qaysi biri «Qurilish mahsuloti» hisoblanadi?",
+            'options': [ "qurib bitkazilgan bino va inshootlar;", "qurib bitkazilgan binolar;", "qurib bitkazilgan inshootlar;", "g’isht, tsement, metall, yog’och va temirbeton tuzilmalari;" ],
+            'correct_answer': "qurib bitkazilgan bino va inshootlar;", # VAQTINCHA
+            'book': "Test Sheet Image 14",'page': None},
+        {   'id': 113,'question': "113. 2. Qurilishni tashkil qilish va rejalashtirish» fanining asosiy vazifasi nimadan iborat?",
+            'options': [ "qurilish ishlab chiqarishini to’g’ri tashkil qilish va rejalashtirish masalalarini o’rganish;", "qurilishda mehnatni to’g’ri tashkil qilish, ish xaqi va mehnatni me’yorlashtirish masalalarini o’rganish;", "ob’ekt qurilishini tashkil qilish masalalarini o’rganish;", "qurilishni material-texnik, vaqtinchalik suv yo’llar, elektr va vagon uychalar bilan ta’minlashni o’rgatadi." ],
+            'correct_answer': "qurilish ishlab chiqarishini to’g’ri tashkil qilish va rejalashtirish masalalarini o’rganish;", # VAQTINCHA
+            'book': "Test Sheet Image 14",'page': None},
+        {   'id': 114,'question': "114. 3. Qurilish ishtirokchilari qaysi javobda to’liq ko’rsatilgan?",
+            'options': [ "buyurtmachi, loyihachi, quruvchi;", "buyurtmachi, loyihachi, quruvchi korxonalar, transport korxonalari;", "buyurtmachi, loyihachi, quruvchi, qurilish materiallari va texnika ishlab chiqaruvchi korxonalar, tranport korxonalari, ilmiy-tadqiqot institutlari;", "buyurtmachi, loyihachi, quruvchi, qurilish materiallari va texnikasi ishlab chiqaruvchi korxonalar, transport korxonalari, ilmiy-tadqiqot institutlari, qurilish banklari;" ],
+            'correct_answer': "buyurtmachi, loyihachi, quruvchi, qurilish materiallari va texnikasi ishlab chiqaruvchi korxonalar, transport korxonalari, ilmiy-tadqiqot institutlari, qurilish banklari;", # Eng to'liq variant
+            'book': "Test Sheet Image 14",'page': None},
+        {   'id': 115,'question': "115. 4. Quyidagi qaysi bir javobda «bosh pudratchi»ga to’liq tavsiya berilgan?",
+            'options': [ "u buyurtmachi, loyihachi va yordamchi tashkilotlar bilan shartnoma tuzadi va ularga muvofiq qurilish ishlarini olib boradi;", "u buyurtmachi bilan shartnoma tuzadi va boshqa tashkilotlarni ham qurilishga jalb qiladi va qurilishga to’liq javob beradi;", "u buyurtmachi bilan shartnoma tuzadi, loyiha-smeta xujjatlarini tuzadi, qurilishni o’zi olib boradi va zarur xollarda yordamchi tashkilotlar bilan birga olib boradi, qurilishga to’la javob beradi;", "u buyurtmachi bilan shartnoma tuzadi, qurilishni o’zi olib boradi va unga to’la javob beradi;" ],
+            'correct_answer': "u buyurtmachi bilan shartnoma tuzadi, loyiha-smeta xujjatlarini tuzadi, qurilishni o’zi olib boradi va zarur xollarda yordamchi tashkilotlar bilan birga olib boradi, qurilishga to’la javob beradi;", # VAQTINCHA
+            'book': "Test Sheet Image 14",'page': None},
+        {   'id': 116,'question': "116. 5. Xalqaro banklar ,fondler sarmoya berishgada ijtimoiy qiymati yuqori bo’lgan loyihalarga sarmoyalar oqlash vaqtini necha yil deb belgilshgan ?",
+            'options': [ "10-15", "5-10", "25-30", "20-25" ],'correct_answer': "10-15", # VAQTINCHA
+            'book': "Test Sheet Image 15",'page': None},
+        {   'id': 117,'question': "117. 6. Qurilishda loyihalashning asosiy maqsadi nimadan iborat?",
+            'options': [ "binoni o’z vaqtida sifatli qilib qurib topshirish;", "kapital mablag’lardan o’z vaqtida unumli foydalanish;", "binoni seysmik mustahkamligini ta’minlash;", "binoni me’moriy talablari asosida qurish.", "yuqoridagi 3 va 4 javoblar to’g’ri." ],
+            'correct_answer': "binoni o’z vaqtida sifatli qilib qurib topshirish;", # VAQTINCHA
+            'book': "Test Sheet Image 15",'page': None},
+        {   'id': 118,'question': "118. 7. Qurilishda «loyiha» deganida nimani tushunasiz?",
+            'options': [ "loyiha - bino (inshoot) yoki binolar kompleksi qurilishining texnik-iqtisodiy hisoblar asosida oldindan tayyorlangan va grafiklar aks ettirilgan yechimlari majmuasi;", "loyiha - quriladigan bino yoki inshootning loyihalash institutlari tomonidan tayyorlangan va davlat ekspertizasidan o’tkazilib tasdiqlangan xujjat;", "loyiha qurib bitkazilishi shart bo’lgan bino yoki inshootning texnik iqtisodiy hisoblar asosida tayyorlangan ishchi chizmalar majmuasi;", "loyiha bino yoki binolar kompleksi qurilishini oldindan rejalashtiruvchi, bosh pudratchi tomonidan bajarilishi shart bo’lgan yuridik xujjat;" ],
+            'correct_answer': "loyiha - bino (inshoot) yoki binolar kompleksi qurilishining texnik-iqtisodiy hisoblar asosida oldindan tayyorlangan va grafiklar aks ettirilgan yechimlari majmuasi;", # VAQTINCHA
+            'book': "Test Sheet Image 15",'page': None},
+        {   'id': 119,'question': "119. 8. Qurilishda loyihalash necha bosqichda olib boriladi?",
+            'options': [ "ikki bosqichda;", "uch bosqichda;", "bir, ikki yoki uch bosqichda;", "bir bosqichda;" ],
+            'correct_answer': "ikki bosqichda;", # VAQTINCHA
+            'book': "Test Sheet Image 15",'page': None},
+        {   'id': 120,'question': "120. 9. Quruvchi binoni qurish paytida loyihadan chetga chiqishi mumkinmi?",
+            'options': [ "buyurtmachi va loyihachining roziligi bilan mumkin.", "buyurtmachining roziligi bilan mumkin;", "loyihachining roziligi bilan mumkin;", "aslo mumkin emas;" ],
+            'correct_answer': "buyurtmachi va loyihachining roziligi bilan mumkin.", # VAQTINCHA
+            'book': "Test Sheet Image 15",'page': None},
+        {   'id': 121,'question': "121. 10. Mulkchilikning nechta turi mavjud?",
+            'options': [ "2ta", "3ta", "1ta", "5ta", "4ta" ],'correct_answer': "2ta", # VAQTINCHA
+            'book': "Test Sheet Image 16",'page': None},
+        {   'id': 122,'question': "122. 11. Xususiy mulkning shakillar nechta?",
+            'options': [ "9ta", "8ta", "5ta", "4ta", "3ta" ],'correct_answer': "9ta", # VAQTINCHA
+            'book': "Test Sheet Image 16",'page': None},
+        {   'id': 123,'question': "123. 12.Qurilish ishlarini tashkil etish usullari nechta?",
+            'options': [ "3ta", "5ta", "4ta", "7ta" ],'correct_answer': "3ta", # VAQTINCHA
+            'book': "Test Sheet Image 16",'page': None},
+        {   'id': 124,'question': "124. 13. Qurilish bosh tarxi o’zida nimalarni aks ettiradi?",
+            'options': [ "doimiy va vaqtinchalik binolarni, doimiy va vaqtinchalik yo’llarni, o’zlashtirilgan va ko’kalamzorlashtirilgan maydonni, vaqtinchalik suv, elektr, telefon va kanalizatsiya tizimini vaqtinchalik yo’l va yo’laklarni;", "qurilayotgan binoni, vaqtinchalik bino va inshootlarni, ombor xo’jaligini, vaqtinchalik suv va elektr tizimini, vaqtinchalik yo’llar;", "qurilayotgan binoni, vaqtinchalik bino va inshootlarni, ombor xo’jaligini, vaqtinchalik suv va elektr tizimini, ko’kalamzorlashtirilgan maydonni va montaj kranning joylashtirilishini;", "qurilayotgan binoni, vaqtinchalik bino va inshootlarni, vaqtinchalik suv, elektr, telefon va kanalizatsiya tizimini, ombor xo’jaligini;" ],
+            'correct_answer': "doimiy va vaqtinchalik binolarni, doimiy va vaqtinchalik yo’llarni, o’zlashtirilgan va ko’kalamzorlashtirilgan maydonni, vaqtinchalik suv, elektr, telefon va kanalizatsiya tizimini vaqtinchalik yo’l va yo’laklarni;", # VAQTINCHA
+            'book': "Test Sheet Image 16",'page': None},
+        {   'id': 125,'question': "125. 14. Ob’ekt qurilishiga tayyorgarlik davrida qanday ishlar bajariladi?",
+            'options': [ "maydon ichi va maydon tashqarisidagi tayyorgarlik ishlari bajariladi;", "qurilish uchun yer maydoni ajratiladi;", "qurilish uchun shartnoma tuziladi;", "loyiha -smeta xujjatlarini tayyorlanadi;" ],
+            'correct_answer': "maydon ichi va maydon tashqarisidagi tayyorgarlik ishlari bajariladi;", # VAQTINCHA
+            'book': "Test Sheet Image 16",'page': None},
+        {   'id': 126,'question': "126. 15. Vaqtinchalik binolarni loyihalashda qanday ko’rsatkich asosiy omil hisoblanadi?",
+            'options': [ "qurilishda ishlovchilarning smenadagi eng maksimal soni;", "qurilishda ishlovchilarning ro’yhat bo’yicha soni;", "qurilishda ishchilar soni;", "qurilishdagi ishchi xizmatchilarning umumiy soni;" ],
+            'correct_answer': "qurilishda ishlovchilarning smenadagi eng maksimal soni;", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 127,'question': "127. 6.Foydalanishga oid belgilariga ko’ra loyhalar turlari nechta",
+            'options': [ "2ta", "3ta", "4ta", "7ta" ],'correct_answer': "2ta", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 128,'question': "128. 17. Ozbekistonda haftada necha kuni ish kuni hisoblanadi?",
+            'options': [ "5 kun", "4 kun", "3 kun", "6 kun" ],'correct_answer': "5 kun", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 129,'question': "129. 18. Ozbekistonda bir smena vaqti necha soat?",
+            'options': [ "8.2 soat", "8 soat", "7.8 soat", "9 soat" ],'correct_answer': "8.2 soat", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 130,'question': "130. 9. Qurilish kalendarь rejasini tuzishda qaysi me’yoriy xujjat (adabiyot)lardan foydalaniladi?",
+            'options': [ "faqat YaMvaN va QMQlardan;", "faqat (SNiP) QMQlardan;", "faqat VNiR va MNiRlardan;", "faqat (ENiR) YaMvaNlardan;" ],
+            'correct_answer': "faqat YaMvaN va QMQlardan;", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 131,'question': "131. 20. To’rsimon grafikda asosan nimalar aks ettiriladi?",
+            'options': [ "ishlarning bajarilish ketma-ketligi;", "ishlarning texnologik va tashkiliy bog’liqligi;", "mashina va mexanizmlardan foydalanish tartibi;", "1 va 2 javoblar to’g’ri;" ],
+            'correct_answer': "ishlarning bajarilish ketma-ketligi;", # VAQTINCHA
+            'book': "Test Sheet Image 17",'page': None},
+        {   'id': 132,'question': "132. 21. Quyidagi javoblardan qaysi birida to’rsimon grafik element-lari to’laroq keltirilgan?",
+            'options': [ "yo’l, voqelik, ish, kritik yo’l, kutish, bog’liqlik;", "yo’l, voqelik, ish, kritik yo’l, bog’liqlik, «tupik»;", "yo’l, voqelik, ish, kritik yo’l, bog’liqlik, «tupik», «dum»;", "yo’l, voqelik, ish, kritik yo’l, kutish va «mavhum ish»;" ],
+            'correct_answer': "yo’l, voqelik, ish, kritik yo’l, kutish, bog’liqlik;", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 133,'question': "133. 22. Ozbekistonda bir haftasiga necha soat ishlash qabul qilingan soat?",
+            'options': [ "41soat", "42 soat", "40soat", "43 soat" ],'correct_answer': "41soat", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 134,'question': "134. 23. To’rsimon grafikda asosan nimalar aks ettiriladi.",
+            'options': [ "ishlarning bajarilish ketma-ketligi, ishlarning texnologik va tashkiliy bog’liqligi.", "bosh pudratchi tomonidan qurilish sifatini doimiy nazorat qilib turish uchun tuziladi;", "mashina va mexanizmlardan foydalanish tartibi.", "yuqoridagi hamma javoblar noto’g’ri" ],
+            'correct_answer': "ishlarning bajarilish ketma-ketligi, ishlarning texnologik va tashkiliy bog’liqligi.", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 135,'question': "135. 24.Qurilishda yogoch konstruksiyalar miqdori qaysi birlik bilan o’lchanadi?",
+            'options': [ "m3", "m2", "m", "tonnada", "litrda" ],'correct_answer': "m3", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 136,'question': "136. 25. Berilgan formulalarni ichida qaysi biri qurilish oqimini asosiy formulasi bo’lib hisoblanadi?",
+            'options': [ "T umumiy = t · m", "T umumiy = t", "T umumiy = tq (m+n-1)", "yuqoridagi hamma javoblar noto’g’ri" ],
+            'correct_answer': "T umumiy = t · m", # VAQTINCHA (Teng maromli uchun)
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 137,'question': "137. 26. Qurilishda transport vositasini tanlashda asosan qanday omillar e’tiborga olinishi kerak?",
+            'options': [ "yukning turi, miqdori o’lchamlari va tashish masofasi;", "hech qanday omil hisobga olinmaydi;", "qurilish tashkilotining moddiy imkoniyati;", "buyurtmachining moddiy imkoniyati;" ],
+            'correct_answer': "yukning turi, miqdori o’lchamlari va tashish masofasi;", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 138,'question': "138. 27. Qurilishda qidiruv ishlari necha xil bo’ladi?",
+            'options': [ "3xil", "4xil", "5xil", "6xil" ],'correct_answer': "3xil", # VAQTINCHA
+            'book': "Test Sheet Image 18",'page': None},
+        {   'id': 139,'question': "139. 28. Qurilishda muhandislik qidiruv ishlari o’z ichida necha xil bo’ladi?",
+            'options': [ "5xil", "4xil", "3xil", "6xil" ],'correct_answer': "5xil", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 140,'question': "140. 29. Berilgan ma’lumotlarga qarab qurilish muddati T0 topilsin: t=100, N=6,ishlar ketma ket bajarilganda.",
+            'options': [ "600 kun;", "300 kun;", "220 kun;", "106 kun;" ],'correct_answer': "600 kun;", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 141,'question': "141. 30. Ishchi komissiya kim tomonidan va nima maqsadda tuziladi?",
+            'options': [ "buyurtmachi tomonidan qurib bitkazilgan binoni qabul qilib olish va Davlat komissiyasiga tayyorlash uchun tuziladi.", "loyihachi tomonidan qurilishning loyihaga muvofiq bajarilayotganligini nazorat qilib turish uchun tuziladi;", "yordamchi pudratchi tomonidan ish sifatini nazorat qilib turish uchun tuziladi;", "davlat (xokimiyat) tomonidan tayyor ob’ektni qabul qilib olish uchun;" ],
+            'correct_answer': "buyurtmachi tomonidan qurib bitkazilgan binoni qabul qilib olish va Davlat komissiyasiga tayyorlash uchun tuziladi.", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 142,'question': "142. 31. Berilgan ma’lumotlarga qarab qurilish muddati T0 topilsin: t=100, N=6. ishlar paralel bajarilganda.",
+            'options': [ "100 kun;", "195 kun;", "600 kun;", "150 kun;" ],'correct_answer': "100 kun;", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 143,'question': "143. 32. Qurilishdagi loyihalashni bosh vazifasi nimalardan iborat?",
+            'options': [ "qurilishga yangi texnologiya, fan va texnika yutuqlarini joriy qilish, mehnat unumdorligini ko’tarish;", "vaqtdan yutgan holda kapital jamg’armadan foydalanish va iqtisod qilish;", "qurilish me’yorlari va qoidalariga rioya qilish, qurilish jarayonini tezlashtirish;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "qurilishga yangi texnologiya, fan va texnika yutuqlarini joriy qilish, mehnat unumdorligini ko’tarish;", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 144,'question': "144. 32.Loyihalash vaqti o’rtacha hisobda qurilishning umumiy vaqtining necha foizini tashkil etadi ?",
+            'options': [ "25-40%", "20-40%", "15-40%", "25-45%" ],'correct_answer': "25-40%", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 145,'question': "145. 34. Loyihalash uchun topshiriq nimalardan iborat?",
+            'options': [ "qurilish joyi, homashyo va energiya bilan ta’minlash manbalari, qurilish quvvati va mahsuloti, loyihalash bosqichi, qurilish muddati va qurilish navbati;", "arxitekturaviy-tarx qarorlar, loyihalanadigan shaxba (ob’ekt) tasnifi ishchilar soni mashina va mexanizmlar quvvati, qurilishni suv bilan ta’minlash, qurilish tashkilotlari, qurilishni tannarhi;", "bosh pudratga tashkilotlar, yordamchi qurilish tashkilotlari, xom ashyolar zaxirasi, tayyor mahsulotni iste’mol qiluvchilar, qurilish muddati;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "qurilish joyi, homashyo va energiya bilan ta’minlash manbalari, qurilish quvvati va mahsuloti, loyihalash bosqichi, qurilish muddati va qurilish navbati;", # VAQTINCHA
+            'book': "Test Sheet Image 19",'page': None},
+        {   'id': 146,'question': "146. 35.Binoning yer osti qismi bo’yicha ishlarning qiymati umumiy smeta qiymatini necha foizini tashkil qiladi :",
+            'options': [ "12-15%", "10-15%", "12-20%", "12-17%" ],'correct_answer': "12-15%", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 147,'question': "147. 36. To’rsimon tqavim reja nechanchi paydo bo’lgan ?",
+            'options': [ "1956-yilda", "1957-yilda", "1958-yilda", "1959-yilda" ],'correct_answer': "1956-yilda", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 148,'question': "148. 37. Berilgan ma’lumotlarga qarab qurilish muddati T0 topilsin: t=100, N=6,ishlar ketma ket bajarilganda.",
+            'options': [ "600 kun;", "300 kun;", "220 kun;", "106 kun;" ],'correct_answer': "600 kun;", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 149,'question': "149. 38. Berilgan ma’lumotlarga qarab qurilish muddati T0 topilsin: t=100, N=6,ishlar paralel bajarilganda.",
+            'options': [ "100 kun;", "300 kun;", "220 kun;", "106 kun;" ],'correct_answer': "100 kun;", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 150,'question': "150. 39. Qurilishda metal materiallar qanday birlik bilan hisiblanadi ?",
+            'options': [ "tonna", "m3", "m2", "m" ],'correct_answer': "tonna", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 151,'question': "151. 40. Loyihalovchi tashkilotlarning faoliyatini baholashda nimalarga e’tibor berish zarur?",
+            'options': [ "yuqori texnik iqtisodiy darajasi, mehnat unumdorligini oshi-rish, me’moriy-tarxlash qarorlarini yaxshilash;", "qurilish yig’ma ishlari hissasini kamaytirish moddiy resurslarni sarflanishini qisqartirish, qurilish muddatini qisqartirish, bosh pudratga ishini nazorat qilish;", "mehnat unumdorligini oshirish, moddiy manba (resurc)lar sarfini kamaytirish, yordamchi tashkilotlari ishini yo’lga qo’yish;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "yuqori texnik iqtisodiy darajasi, mehnat unumdorligini oshi-rish, me’moriy-tarxlash qarorlarini yaxshilash;", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 152,'question': "152. 41. Ishlarni bajarish loyihasini ishlab chiqishda qanday dastlabki xujjatlar zarur bo’ladi?",
+            'options': [ "qurilishni tashkil qilish loyihasi, shaxba ishchi chizmalari, moddiy texnik ta’minot negizi haqida ma’lumot, yig’ma-hisobnoma. SNiP 3.01.01.-85, SNiP 1.04.03.-85, YeNiR;", "Qurilishni tashkil qilish loyihasi, ishga tushuvchi majmua, shaxbalar ishchi chizmasi, manbalar keltirish haqida ma’lumotlar me’yoriy xujjatlar (SNiP 3.01.01-85, YeNiR);", "muhandislik-qidiruv ishlari haqida ma’lumot, loyihalash uchun vazifa, ishchi chizma, xodimlar haqida ma’lumot. SNiP 3.01.01.-85, SniP 1.02.01-85.", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "qurilishni tashkil qilish loyihasi, shaxba ishchi chizmalari, moddiy texnik ta’minot negizi haqida ma’lumot, yig’ma-hisobnoma. SNiP 3.01.01.-85, SNiP 1.04.03.-85, YeNiR;", # VAQTINCHA
+            'book': "Test Sheet Image 20",'page': None},
+        {   'id': 153,'question': "153. 42. To’rsimon jadvalning elementlari nimalardan iborat?",
+            'options': [ "ish, voqea, bog’lanish va kutish;", "ish, voqea, zaxiralar va yo’l;", "ish, voqea, maksimal yo’l va to’la zaxira;", "ish, voqea, ishni erta va kech tugash muddatlari;", "yuqoridagi javoblarning hammasi to’g’ri." ],
+            'correct_answer': "ish, voqea, bog’lanish va kutish;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 154,'question': "154. 43. To’rsimon jadvaldagi voqea elementi necha xil bo’ladi?",
+            'options': [ "boshlang’ich va yakuniy;", "boshlang’ich, oraliq va yakuniy;", "maqsadli va nazoratli;", "yuqoridagi 1-3 javoblar to’g’ri;", "yuqoridagi hamma javoblar noto’g’ri;" ],
+            'correct_answer': "boshlang’ich va yakuniy;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 155,'question': "155. 44. Taqvimli reja asosida nimalar aniqlanadi?",
+            'options': [ "ishchi kuchi, ashyo va yig’ma konstruktsiyalar hamda vaqtga, shu bilan birga qurilish mashinalari, naqliyot vositalariga bo’lgan talab;", "qurilishda bajariladigan ishlar hajmi, ketma-ketligi, texnologik jarayonlar, ishni bajaruvchi ishchi brigadalar, yer qazuvchi ekskavatorlar soni;", "qurilish mashinalari soni, yordamchi (sub) pudrat tashkilotlari, qurilishni kerak bo’lgan ashyolar bilan ta’minlovchi tashkilotlar, zarur bo’lgan ishchi zvenolari tarkibi;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "ishchi kuchi, ashyo va yig’ma konstruktsiyalar hamda vaqtga, shu bilan birga qurilish mashinalari, naqliyot vositalariga bo’lgan talab;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 156,'question': "156. 45. Ishchilarni notekis xarakati koeffitsienti qaysi formulada ifodalangan?",
+            'options': [ "K = Ryp / R max ≈ 1;", "K = Σ Акуп / Σ ишчи кун ≈ 2", "K = Σ ишчи−кун / Т ≈ 0,5", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "K = Ryp / R max ≈ 1;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 157,'question': "157. 46. Qidiruv ishlarini bajarishda qaysi tashkilotni ruhsatnomasi bo’lishi zarur?",
+            'options': [ "xokimiyat va shahar bosh arxitektori;", "bosh buyurtmachi, o’t o’chirish tashkiloti shahar arxitektori;", "shahar xokimiyati, qurilish korporatsiyasi;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "xokimiyat va shahar bosh arxitektori;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 158,'question': "158. 47. Qurilishda muhandislik tayyorgarlik davrida qanday ishlar amalga oshiriladi?",
+            'options': [ "yangi qurilish taklifini tayyorlash va himoyalash, qurilish tuma-nini tanlash, uchastka ajratish qarorini chiqarish, loyihalash uchun vazifa ishlab chiqish, loyihalash, qurilish tashkilotini tayyorlash asosiy qurilish ishlarini bajarish;", "qurilishni boshlash uchun xokimiyat qarori, buyurtmachi, bosh pud-ratchi va loyihalovchi tashkilotlar tomonidan loyiha ishlab chiqish, qurilish maydoniga ashyo va konstruktsiyalarni keltirish, poydevor quyish uchun handaq qazish, suv tarmog’i va kanalizatsiya o’tkazish;", "qanday bino yoki inshoot qurish uchun Vazirlar mahkamasini qaro-ri, qurilish uchun yer ajratish, muhandislik qidiruv ishlarini olib borish, qurilishni loyihasini ishlab chiqish, bosh pudratchini aniqlash, qurilishni asosiy qismini boshlash;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "yangi qurilish taklifini tayyorlash va himoyalash, qurilish tuma-nini tanlash, uchastka ajratish qarorini chiqarish, loyihalash uchun vazifa ishlab chiqish, loyihalash, qurilish tashkilotini tayyorlash asosiy qurilish ishlarini bajarish;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 159,'question': "159. 48. Qurilish pasportida nimalar bayon qilinadi?",
+            'options': [ "bino nomi, hajmi, uchastka bo’yicha texnik ma’lumotlar, yer ajratish xaqida xokimiyat qarori, loyihalovchi va quruvchi tashkilotlar, nomi va x.k.;", "ish yurituvchi arxitektor va buyurtmachilar ismi-sharifi, qurilish maydonini o’lchamlari, shahbani quvvati, ishlarni bajarish loyihasi va x.k.;" ],
+            'correct_answer': "bino nomi, hajmi, uchastka bo’yicha texnik ma’lumotlar, yer ajratish xaqida xokimiyat qarori, loyihalovchi va quruvchi tashkilotlar, nomi va x.k.;", # VAQTINCHA
+            'book': "Test Sheet Image 21",'page': None},
+        {   'id': 160,'question': "160. 49. Qurilish oqimi bu nima?",
+            'options': [ "Mehnat qurollarini ixtisoslash va mehnatni bo’linishi natijasida paydo bo’lgan ishlab chiqarishni tashkil qilinishini oliy shaklidir;", "mahsulotni bir me’yorda chiqarilishi quruvchilarni yangi texnika va asbob-uskunalar bilan ta’minlashdir;", "qurilish muddatini qisqartirish, yangi texnologiyani qo’llash, ishchilar sharoitini yaxshilash va ish haqini ko’paytirishdir;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "Mehnat qurollarini ixtisoslash va mehnatni bo’linishi natijasida paydo bo’lgan ishlab chiqarishni tashkil qilinishini oliy shaklidir;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 161,'question': "161. 50. Kapital qurilishni asosiy mahsuloti bu:",
+            'options': [ "qurilib bitgan bino, imorat yoki inshoot;", "sifatli beton;", "yig’ma temir-beton mahsulotlari;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "qurilib bitgan bino, imorat yoki inshoot;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 162,'question': "162. 51. Uy–joy, madaniy - maishiy binolar qurilishida buyurtmachi bo’lib kim ishtirok etadi?",
+            'options': [ "xokimiyat;", "vazirlar mahkamasi;", "qurilish vazirligi;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "xokimiyat;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 163,'question': "163. 52. To’rsimon jadval necha usulda hisoblanadi?",
+            'options': [ "ikki usulda; qo’lda va EXM yordamida;", "bir usulda, EXM yordamida;", "uch usulda, EXM yordamida, qo’lda va vaqt miqyosida;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "ikki usulda; qo’lda va EXM yordamida;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 164,'question': "164. 53. Qurilishda bosh pudratchi rolida kim ishtirok etadi?",
+            'options': [ "qurilishni asosiy qismini bajaruvchi tashkilot;", "yer ishlarini bajaruvchi maxsus tashkilot;", "pardoz ishlarini bajaruvchi tashkilot;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "qurilishni asosiy qismini bajaruvchi tashkilot;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 165,'question': "165. 54. Ta’minlovchi bo’lib qanday korxona hisoblanadi?",
+            'options': [ "qurilish uchun zarar bo’lgan maxsulotlarni ishlab chiqaruvchi korxonalar;", "g’isht zavodlar;", "temir-beton maxsulotlari ishlab chiqaruvchi korxona;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "qurilish uchun zarar bo’lgan maxsulotlarni ishlab chiqaruvchi korxonalar;", # VAQTINCHA
+            'book': "Test Sheet Image 22",'page': None},
+        {   'id': 166,'question': "166. 55. Loyihalovchi tashkilotlar nimaga asosan loyihalash ishlarini bajaradi?",
+            'options': [ "buyurmachi buyurtmasi va shartnomaga asosan;", "xokimiyat qaroriga asosan;", "vazirlar mahkamasi qaroriga asosan;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "buyurmachi buyurtmasi va shartnomaga asosan;", # VAQTINCHA
+            'book': "Test Sheet Image 23",'page': None},
+        {   'id': 167,'question': "167. 56. Qurilishda buyurtmachining asosiy vazifasiga nimalar kiradi?",
+            'options': [ "loyiha xujjati uchun asosiy manbalarni berish,bankda hisob-kitob ochish,qurilishni nazorat qilish, bitgan qismlarini qabul qilib olish;", "qurilishni asosiy qismlarini qurish, loyiha hisobnoma xujjatlarini tayyorlash;", "qurilish uchun maydon ajratish,texnologik asbob-uskunalarni, tayyorlash, qurilish uchun pul ajratish va pardozlashishlarini bajarish;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "loyiha xujjati uchun asosiy manbalarni berish,bankda hisob-kitob ochish,qurilishni nazorat qilish, bitgan qismlarini qabul qilib olish;", # VAQTINCHA
+            'book': "Test Sheet Image 23",'page': None},
+        {   'id': 168,'question': "168. 57. Qurilish tashkilotining bosh muxandisi vazifasi nimadan iborat?",
+            'options': [ "qurilishda texnika siyosatini olib borish;", "qurilish shaxbalarida ishlarni uyushtirish;", "qurilish uchun zarur bo’lgan ashyolarni keltirish;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "qurilishda texnika siyosatini olib borish;", # VAQTINCHA
+            'book': "Test Sheet Image 23",'page': None},
+        {   'id': 169,'question': "169. 58. Taqvimli reja tuzish uchun asosiy manba bo’lib qo’yidagilar kiradi?",
+            'options': [ "qurilish muddati, hisobnomali ishchi chizmalar, YeNiR;", "qurilish muddati va xom ashyolar hajmi;", "hisobnoma (smeta) xujjatlar;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "qurilish muddati, hisobnomali ishchi chizmalar, YeNiR;", # VAQTINCHA
+            'book': "Test Sheet Image 23",'page': None},
+        {   'id': 170,'question': "170. 59. Loyihalash bosqichlari necha bosqichdan tashkil topgan?",
+            'options': [ "ikki bosqichdan - hisobnomali loyiha va ishchi xujjat;", "bir bosqichdan - hisobnomali loyiha;", "bir bosqichli va ikki bosqichli;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "ikki bosqichdan - hisobnomali loyiha va ishchi xujjat;", # VAQTINCHA
+            'book': "Test Sheet Image 23",'page': None},
+        {   'id': 171,'question': "171. 60. Muxandislik – iqtisodiy qidiruvlar quyidagilarga bo’linadi?",
+            'options': [ "muxandisli texnikaviy va iqtisodiy;", "iqtisodiy, santexnikaviy;", "muxandisli-texnikaviy;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "muxandisli texnikaviy va iqtisodiy;", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 172,'question': "172. 61.Qurilishda bosh pudratchini asosiy vazifasi nimalardan iborat?",
+            'options': [ "qurilishni sifatli bajarib o’z muddatida ishga tushirish.", "qurilishni asbob-uskuna, xomashyo va xodimlar bilan ta’minlash.", "qurilish uchun kerak bo’lgan loyiha va hisobnomalarni ishlab chiqish.", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "qurilishni sifatli bajarib o’z muddatida ishga tushirish.", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 173,'question': "173. 62. To’rsimon jalvalni qo’lda bajarish necha usulda amalga oshiriladi?",
+            'options': [ "uch usulda – jadval, bo’lak (sektor) va vaqt miqyosida.", "bir usulda – jadval usulda.", "ikki usulda – jadval va bo’lak usulda.", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "uch usulda – jadval, bo’lak (sektor) va vaqt miqyosida.", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 174,'question': "174. 63. Muxandislik texnik qidiruv ishlari nimalarni aniqlaydi?",
+            'options': [ "geologik, gidrogeologik, klimatik, yer va geobatanik sharoitlar va tabiat – gigienik tekshirishlar.", "mahalliy naqliyot vositalari, suv va energiya manbalari, mahalliy xomashyo resupslarini.", "qurilish tashkilotini mavjudligi, xududni muxandislik tayyorligini.", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "geologik, gidrogeologik, klimatik, yer va geobatanik sharoitlar va tabiat – gigienik tekshirishlar.", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 175,'question': "175. 64. Bosh loyihalovchi tashkilot bo’lib qaysi tashkilot hisoblanadi?",
+            'options': [ "loyihani texnologik qismini bajaruvchi loyiha tashkiloti;", "loyihani tashkiliy qismini ishlab chiquvchi tashkilot;", "loyihani ishchi chizmalarini bajaruvchi tashkilot;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "loyihani texnologik qismini bajaruvchi loyiha tashkiloti;", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 176,'question': "176. 65. Loyihalash deb nimani tushuniladi?",
+            'options': [ "bu jamoa mutaxassislarining o’zaro bog’liq majmuasi bo’lib, natijada bino, inshoot uchun texnik xujjat yaratiladi;", "bu oldindan tayyorlangan iqtisodiy va texnik xisoblar bilan asoslangan bino, inshootlar qurish uchun qarorni jadvaliy tasnifidir;", "bu majmuaviy tarkib bo’lib, bunda bir bo’limda loyihani hamma yoki ko’p qismini loyihalashdir;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "bu jamoa mutaxassislarining o’zaro bog’liq majmuasi bo’lib, natijada bino, inshoot uchun texnik xujjat yaratiladi;", # VAQTINCHA
+            'book': "Test Sheet Image 24",'page': None},
+        {   'id': 177,'question': "177. Loyihani ishlab chiqish nima asosida bajariladi?",
+            'options': [ "loyihalash uchun berilgan vazifa asosida;", "bosh pudratchini taklifiga asosan;", "buyurtmachini iltimosiga asosan;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "loyihalash uchun berilgan vazifa asosida;", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 178,'question': "178. Xissadorlik jamoatida bo’lgan qurilish tresti boshqaruvchisini asosiy vazifasi nimalardan iborat?",
+            'options': [ "ishlab chiqarish faoliyati bilan shug’ullanadi, trestni boshqaradi, va unga raxbarlik qiladi;", "xavfsizlik texnikasiga amal qilish, ilg’or tajribani joriy qilish, qurilish ishlab chiqarishini tashkil qilish;", "moddiy texnik ta’minot bilan shug’ullanadi, rejalar tuzadi, xujjatlarni tahlil qiladi;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "ishlab chiqarish faoliyati bilan shug’ullanadi, trestni boshqaradi, va unga raxbarlik qiladi;", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 179,'question': "179. Loyihalash tashkilotlarining asosiy vazifalariga nimalar kiradi?",
+            'options': [ "taraqqiy texnologiya va ashyolar qo’llash, ilg’or boshqarish va tash-kil qilish usullarini joriy qilish, fan va texnika yutuqla-ridan keng ko’lamda foydalanish;", "shaxba qurish va ishlatish vaqtida moddiy resurslar sarfini qisqartirish;", "yuqori texnik iqtisodiy darajada, mehnat unumdorligini oshirish, me’moriy-tarxlov qarorlarini yaxshilash;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
+            'correct_answer': "taraqqiy texnologiya va ashyolar qo’llash, ilg’or boshqarish va tash-kil qilish usullarini joriy qilish, fan va texnika yutuqla-ridan keng ko’lamda foydalanish;", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 180,'question': "180. Iqtisodiy qidiruv ishlarida nimalar aniqlanadi?",
+            'options': [ "mahalliy mashina va naqliyot vositalari, suv va energiya manbalari, ishchi xodimlar;", "qurilish tashkilotini mavjudligi, xom ashyolar zahirasi, aero rasmga olish;", "geologik, gidrogeologik, klimatik, or va geobotanik sharoitlari;", "yuqoridagi 2-3 javoblar to’g’ri;" ],
+            'correct_answer': "mahalliy mashina va naqliyot vositalari, suv va energiya manbalari, ishchi xodimlar;", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 181,'question': "181. To’rsimon jadval necha usulda hisoblanadi?",
+            'options': [ "ikki usulda: qo’lda va EXM yordamida;", "bir usulda: EXM yordamida;", "uch usulda: EXM yordamida, qo’lda va vaqt miqyosida;", "yuqoridagi 1-2 javoblar to’g’ri;" ],
+            'correct_answer': "ikki usulda: qo’lda va EXM yordamida;", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 182,'question': "182. Qurilish maydonchasidagi ombor xo’jaligini loyixalashda qanday omillar xisobga olinadi?",
+            'options': [ "1m2 omborda saqlanadigan material va tuzilmalar mikdorining me’yori", "material va tuzilmalarning turi", "material va tuzilmalar taxlarining oraliq koeffitsientlari", "+d) yuqoridagi 1,2,3 javoblar to’g’ri" ],
+            'correct_answer': "1m2 omborda saqlanadigan material va tuzilmalar mikdorining me’yori", # VAQTINCHA
+            'book': "Test Sheet Image 25",'page': None},
+        {   'id': 183,'question': "183. 5 gektarlik qurilish maydonchasida yong’inga qarshi kamida qancha suv sarfini loyixalash zarur?",
+            'options': [ "xar biri 5 l/sek suv sarfiga ega bo’lgan 2 ta gidrant", "xar biri 10 l/sek suv sarfiga ega bo’lgan 2 ta gidrant", "suv sarfi 5 l/sek bo’lgan bitta gidrant", "suv sarfi 10 l/sek bo’lgan bitta gidrant" ],
+            'correct_answer': "xar biri 5 l/sek suv sarfiga ega bo’lgan 2 ta gidrant", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 184,'question': "184. Vaqtinchalik binolarni loyixalashda qanday ko’rsatkich asosiy omil xisoblanadi?",
+            'options': [ "qurilishda ishlovchilarning smenadagi eng maksimal soni", "qurilishda ishlovchilarning ro’yxat bo’yicha soni", "qurilishdagi ishchilar soni", "qurilishdagi ishchi xizmatchilarning umumiy soni" ],
+            'correct_answer': "qurilishda ishlovchilarning smenadagi eng maksimal soni", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 185,'question': "185. Quyidagi ko’rsatkichlardan qaysi biri qurilish bosh rejasiga tegishli emas?",
+            'options': [ "qurilish maydonchasining ko’kalamzorlashtirilganlik darajasi", "maydonning bino va inshootlar bilan egalanganlik darajasi", "vaqtinchalik yo’l va yo’laklar uzunligi", "vaqtinchalik kanalizatsiya uzunligi" ],
+            'correct_answer': "qurilish maydonchasining ko’kalamzorlashtirilganlik darajasi", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 186,'question': "186. Qurilishni tashkil qilishning qanday usuli afzal deb xisoblaysiz va nima uchun?",
+            'options': [ "potok usuli, chunki bunda qurilish muddati, material va ishchi kuchiga bo’lgan e’tiyojni optimallashtirish imkoni bo’ladi", "parallel usul, chunki bunda qurilish muddati kiskarib material va ishchi kuchiga bo’lgan talab minimal bo’ladi", "ketma-ket usul, chunki bunda qurilish muddati qisqarib material va ishchi kuchiga bo’lgan talab minimal bo’ladi", "potok usuli, chunki bunda qurilish muddati eng kiska, material va ishchi kuchiga bo’lgan e’tiyoj eng kam bo’ladi" ],
+            'correct_answer': "potok usuli, chunki bunda qurilish muddati, material va ishchi kuchiga bo’lgan e’tiyojni optimallashtirish imkoni bo’ladi", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 187,'question': "187. Ishlarni bajarish loyihasi(IBL) kim tomonidan tuziladi.",
+            'options': [ "bosh pudratchi yoki uning buyurtmasi bo’yicha loyiha instituti.", "buyurtmachi tashkilot.", "bosh pudratchi. .", "bosh pudratchi va buyurtmachi tashkilot" ],
+            'correct_answer': "bosh pudratchi yoki uning buyurtmasi bo’yicha loyiha instituti.", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 188,'question': "188. Ishlarni bajarish loyihasi(IBL)ning asosiy tarkibi nimalardan iborat.",
+            'options': [ "Taqvimiy rejalar, qurilishning bosh tarhi, texnologik xaritalar.", "Taqvimiy rejalar, qurilish bosh rejasi, qurilishni tashkil qilish rejasi.", "Qurilishni tashkiliy loyihasi, grafiklar.", "Tayyorgarlik ishlariga tuzilgan qurilish bosh rejasi." ],
+            'correct_answer': "Taqvimiy rejalar, qurilishning bosh tarhi, texnologik xaritalar.", # VAQTINCHA
+            'book': "Test Sheet Image 26",'page': None},
+        {   'id': 189,'question': "189. Qurilish maydonidagi ishchilarning maksimal soni (Rm) qanday hujjat bo’yicha aniqlanadi.",
+            'options': [ "Qurilishning taqvimiy yoki to’rsimon grafigidagi ishchi kuchlarning harakat grafigi bo’yicha.", "Material-texnik resurslarning harakat grafigi.", "Qurilish bosh rejasi.", "Mashina va mexanizmlarning harakatlanish grafigi asosida." ],
+            'correct_answer': "Qurilishning taqvimiy yoki to’rsimon grafigidagi ishchi kuchlarning harakat grafigi bo’yicha.", # VAQTINCHA
+            'book': "Test Sheet Image 27",'page': None},
+        {   'id': 190,'question': "190. Qurilish bosh tarhida ko’rsatiladigan transportning ikki tomonlama harakatini ta’minlaydigan yo’l enini aniqlang.",
+            'options': [ "6,0 m b)5,0 m;", "7,2 m;", "7 m;" ],
+            'correct_answer': "6,0 m b)5,0 m;", # VAQTINCHA ('a' varianti)
+            'book': "Test Sheet Image 27",'page': None},
+        {   'id': 191,'question': "191. Qurilish ishlab chiqarishini tashkil qilishning necha xil usuli mavjud",
+            'options': [ "3ta", "4 ta", "2 ta", "5 ta" ],
+            'correct_answer': "3ta", # VAQTINCHA
+            'book': "Test Sheet Image 27",'page': None},
+    ]
 
-    # --- 12-sahifa savollari ---
-    {   'id': 92,
-        'question': "92. Kurilish mashinalarining harakatiga bog’liq holda qanday turlari bor",
-        'options': [ "statsionar va kuchma, uziyurar va tirkama", "kuchma, uziyurar va tirkama", "statsionar va kuchma, uziyurar" ],
-        'correct_answer': "statsionar va kuchma, uziyurar va tirkama", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 93,
-        'question': "93. Kuch uskunalari jixatdan kurilish mashinalari qanday turlarga bo’linadi",
-        'options': [ "elektrik yuritmalari, ichki yenuv dvigatelli, pnevmatik yuritmali, aralash yuritmali", "elektrik yuritmalari, ichki yenuv dvigatelli,", "pnevmatik yuritmali, aralash yuritmali" ],
-        'correct_answer': "elektrik yuritmalari, ichki yenuv dvigatelli, pnevmatik yuritmali, aralash yuritmali", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 94,
-        'question': "94. qurilish-montaj ishlarini qanday nazoratlari mavjud",
-        'options': [ "tashqi va ichki nazorati", "tashqi nazorati", "ichki nazorati" ],
-        'correct_answer': "tashqi va ichki nazorati", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 95,
-        'question': "95. Tashqi nazoratni nechta davlat idoralari olib boradi",
-        'options': [ "8 ta", "9 ta", "10 ta" ],
-        'correct_answer': "8 ta", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 96,
-        'question': "96. Bajarilayotgan ishlarning texnik nazoratini amalga oshiradi, ularning hajmini, bajarilish muddatlarini tekshiradi, tayyor ob’yektlarni foydalanishga qabul qilishda qaysi nazoartchi organ nazorat qiladi",
-        'options': [ "buyutmachi", "loyihachi", "taminotchi" ],
-        'correct_answer': "buyutmachi", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 97,
-        'question': "97. U barpo qilinayotgan ob’yektning tasdiqlangan loyihaga mos kelishini tekshiradi.Kim?",
-        'options': [ "Mualliflik nazoarti", "Buyurmachi", "Taminotchi" ],
-        'correct_answer': "Mualliflik nazoarti", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 98,
-        'question': "98. Mehnat muhofazasi, mehnat xavfsizligi va mehnat qonunchiligi me’yorlarining bajarilishi ustidan nazorat qiladi.Kim?",
-        'options': [ "Kasaba uyushmalari texnik inspeksiyasi", "Mualliflik nazoarti", "Buyurmachi" ],
-        'correct_answer': "Kasaba uyushmalari texnik inspeksiyasi", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 99,
-        'question': "99. Ichki nazoratning necha turini bilasiz",
-        'options': [ "4ta", "5 ta", "3 ta" ],
-        'correct_answer': "4ta", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 100,
-        'question': "100. Beton bloklardan qurilgan yerto‘la devorlarning vertikal va gorizontal choklarining qalinligi necha mm bo’lishi kerak",
-        'options': [ "15mm", "12mm", "20 mm" ],
-        'correct_answer': "15mm", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    {   'id': 101,
-        'question': "101. Blokli terish qatorlarining 10 m uzunlikdagi chegarada gorizontal bo‘yicha og‘ishi necha mm bo’lishi kerak",
-        'options': [ "15mm", "12mm", "20 mm" ],
-        'correct_answer': "15mm", # VAQTINCHA
-        'book': "Test Sheet Image 12", 'page': None
-    },
-    # ... Qolgan savollar (13-19 sahifalar) shu tarzda ...
-    {
-        'id': 112, # Savol raqami takrorlangan, shuning uchun o'zgartiraman
-        'question': "112. Quyidagilarni qaysi biri «Qurilish mahsuloti» hisoblanadi?",
-        'options': [ "qurib bitkazilgan bino va inshootlar;", "qurib bitkazilgan binolar;", "qurib bitkazilgan inshootlar;", "g’isht, tsement, metall, yog’och va temirbeton tuzilmalari;" ],
-        'correct_answer': "qurib bitkazilgan bino va inshootlar;", # VAQTINCHA
-        'book': "Test Sheet Image 14", 'page': None
-    },
-    # ...
-    {
-        'id': 170, # Savol raqami takrorlangan, shuning uchun o'zgartiraman
-        'question': "170. Loyihalash bosqichlari necha bosqichdan tashkil topgan?",
-        'options': [ "ikki bosqichdan - hisobnomali loyiha va ishchi xujjat;", "bir bosqichdan - hisobnomali loyiha;", "bir bosqichli va ikki bosqichli;", "yuqoridagi 1-3 javoblar to’g’ri;" ],
-        'correct_answer': "ikki bosqichdan - hisobnomali loyiha va ishchi xujjat;", # VAQTINCHA
-        'book': "Test Sheet Image 23", 'page': None
-    },
-    # ...
-]
+    # Kodning qolgan qismi (retry_questions, run_quiz funksiyalari va ishga tushirish)
+    # avvalgi javobdagidek qoladi.
 
-# Kodning qolgan qismi (funksiyalar va ishga tushirish) avvalgi javobdagidek qoladi.
+    # --- O'ZGARTIRILMAGAN KOD QISMI (AVVALGI JAVOBDAGI KABI) ---
 
-# --- O'ZGARTIRILMAGAN KOD QISMI (AVVALGI JAVOBDAGI KABI) ---
-
-def retry_questions(incorrect_questions_data):
-    """Xato qilingan savollarni qayta ishlash uchun funksiya."""
-    print("\n--- XATOLAR USTIDA ISHLASH ---")
-    if not incorrect_questions_data:
-        print("Xato qilingan savollar yo'q.")
-        return
-
-    incorrect_questions_data.sort(key=lambda x: x['id']) # ID bo'yicha tartiblash
-
-    for q_data in incorrect_questions_data:
-        print(f"\n{q_data['id']}-SAVOL (Qayta): {q_data['question']}")
-        options = list(q_data['options'])
-        correct_answer_text = q_data['correct_answer']
-        random.shuffle(options)
-
-        correct_answer_shuffled_index = -1
-        labeled_options = {}
-        for index, option in enumerate(options):
-            label = chr(ord('a') + index) # a), b), c)...
-            labeled_options[label] = option
-            print(f"  {label}) {option}")
-            if option == correct_answer_text:
-                correct_answer_shuffled_index = index
-
-        while True:
-            user_answer_label = input("Javobingiz (a, b, c,...): ").lower()
-            if user_answer_label in labeled_options:
-                user_answer_index = ord(user_answer_label) - ord('a')
-                if user_answer_index == correct_answer_shuffled_index:
-                    print("✅ To'g'ri!")
-                else:
-                    correct_label = chr(ord('a') + correct_answer_shuffled_index)
-                    print(f"❌ Noto'g'ri! To'g'ri javob: {correct_label}) {correct_answer_text}")
-                break
+    def retry_questions(incorrect_questions_data):
+        """Xato qilingan savollarni qayta ishlash uchun funksiya."""
+        print("\n--- XATOLAR USTIDA ISHLASH ---")
+        if not incorrect_questions_data:
+            print("Xato qilingan savollar yo'q.")
+            # Xato bo'lmasa, keyingi qismga o'tish tugmasini ko'rsatish
+            next_batch_btn = document.getElementById('next-batch-button')
+            if current_batch_index < num_batches - 1:
+                next_batch_btn.textContent = "Keyingi Qism"
             else:
-                print("Noto'g'ri variant kiritildi. Iltimos, qaytadan urinib ko'ring.")
-    print("\n--- XATOLAR USTIDA ISHLASH TUGADI ---")
+                next_batch_btn.textContent = "Yakuniy Natijalar"
+            next_batch_btn.classList.remove('hidden')
+            return
 
-def run_quiz(questions):
-    """Testni qismlarga bo'lib, variantlarni va qism ichidagi savollarni aralashtirib ishga tushiradi."""
-    if not questions:
-        print("Tugatish uchun savollar yo'q.")
-        return
+        retry_questions_list = list(incorrect_questions_data) # Nusxasini olish
+        random.shuffle(retry_questions_list) # Xato savollarni aralashtirish
+        current_retry_question_index = 0
 
-    total_questions = len(questions)
-    overall_score = 0
-    batch_size = 25
-    num_batches = (total_questions + batch_size - 1) // batch_size
+        quiz_area.classList.add('hidden')
+        batch_results_area.classList.add('hidden')
+        retry_area.classList.remove('hidden')
+        final_results_area.classList.add('hidden')
 
-    # Savollarni ID bo'yicha tartiblash (qismlarga to'g'ri bo'lish uchun)
-    questions.sort(key=lambda x: x['id'])
+        displayRetryQuestion(retry_questions_list, current_retry_question_index)
 
-    for batch_num in range(num_batches):
-        start_index = batch_num * batch_size
-        end_index = min(start_index + batch_size, total_questions)
-        current_batch_original = questions[start_index:end_index] # Original tartibdagi qism
-        current_batch_shuffled = list(current_batch_original) # Aralashtirish uchun nusxa
-        random.shuffle(current_batch_shuffled) # Qism ichidagi savollarni aralashtirish
+    let current_retry_question_index = 0
+    let retry_questions_list_global = []
 
-        if not current_batch_shuffled:
-             continue
+    function handleRetryYes() {
+        retry_questions_list_global = [...incorrectBatchQuestions] // Global ro'yxatga nusxalash
+        document.getElementById('batch-results').classList.add('hidden');
+        document.getElementById('retry-prompt').classList.add('hidden');
+        document.getElementById('next-batch-button').classList.add('hidden');
+        current_retry_question_index = 0;
+        retry_questions(retry_questions_list_global);
+    }
 
-        print(f"\n--- {batch_num + 1}-QISM BOSHLANDI ({len(current_batch_shuffled)} ta savol) ---")
-        input(f"Qism {batch_num + 1} ni boshlash uchun Enter tugmasini bosing...")
 
-        batch_score = 0
-        batch_incorrect_data = [] # Xato qilingan savollarning to'liq ma'lumotini saqlash
+    function displayRetryQuestion(retry_list, index) {
+         if (index >= retry_list.length) {
+             console.log("Xato savollar tugadi.");
+             handleNextBatch(true); // Tugagandan keyin keyingi qismga o'tish
+             return;
+         }
 
-        for q_data in current_batch_shuffled: # Aralashtirilgan qism bo'yicha iteratsiya
-            print(f"\nSAVOL: {q_data['question']}") # Savol raqami olib tashlandi
+        const q_data = retry_list[index];
+        document.getElementById('retry-question-text').innerHTML = `<b>ID ${q_data.id} (Qayta):</b> ${q_data.question}`; // ID bilan
+        document.getElementById('retry-progress-indicator').textContent = `Xato savol ${index + 1} / ${retry_list.length}`;
 
-            options = list(q_data['options'])
-            correct_answer_text = q_data['correct_answer']
-            random.shuffle(options) # Variantlarni aralashtirish
 
-            correct_answer_shuffled_index = -1
-            labeled_options = {}
-            for index, option in enumerate(options):
-                label = chr(ord('a') + index) # a), b), c)...
-                labeled_options[label] = option
-                print(f"  {label}) {option}")
-                if option == correct_answer_text:
-                    correct_answer_shuffled_index = index
+        const optionsContainer = document.getElementById('retry-options-container');
+        optionsContainer.innerHTML = ''; // Oldingi variantlarni tozalash
+        document.getElementById('retry-feedback').classList.add('hidden');
+        document.getElementById('retry-next-button').classList.add('hidden');
+        document.getElementById('retry-next-button').disabled = true;
 
-            # Foydalanuvchi javobini olish va tekshirish
-            while True:
-                user_answer_label = input("Sizning javobingiz (a, b, c,...): ").lower()
-                if user_answer_label in labeled_options:
-                    user_answer_index = ord(user_answer_label) - ord('a')
-                    if user_answer_index == correct_answer_shuffled_index:
-                        print("✅ To'g'ri!")
-                        batch_score += 1
-                    else:
-                        correct_label = chr(ord('a') + correct_answer_shuffled_index)
-                        print(f"❌ Noto'g'ri! To'g'ri javob: {correct_label}) {correct_answer_text}")
-                        print(f"   Manba: {q_data.get('book', 'Noma\'lum kitob')}, Sahifa: {q_data.get('page', 'Noma\'lum')}")
-                        # Xato qilingan savol ID sini saqlash (matn o'rniga)
-                        incorrect_question_info = {'id': q_data['id'], 'question': q_data['question'], 'options': q_data['options'], 'correct_answer': q_data['correct_answer'], 'book': q_data.get('book'), 'page': q_data.get('page')}
-                        batch_incorrect_data.append(incorrect_question_info)
-                    break
-                else:
-                    print("Noto'g'ri variant kiritildi. Iltimos, qaytadan urinib ko'ring.")
 
-        # Qism yakunida natija va xatolarni ko'rsatish
-        print(f"\n--- {batch_num + 1}-QISM NATIJASI ---")
-        print(f"Siz bu qismdagi {len(current_batch_original)} ta savoldan {batch_score} tasiga to'g'ri javob berdingiz.")
-        overall_score += batch_score
+        let options = [...q_data.options];
+        const correctAnswerText = q_data.correct_answer;
+        shuffleArray(options);
 
-        if batch_incorrect_data:
-            print("\nBu qismda xato qilingan savollar:")
-            # Xato savollarni ID bo'yicha tartiblab chiqarish
-            batch_incorrect_data.sort(key=lambda x: x['id'])
-            for incorrect_q in batch_incorrect_data:
-                print(f"- ID {incorrect_q['id']}: {incorrect_q['question']}") # ID ni ko'rsatish
+        options.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.onclick = () => checkRetryAnswer(option === correctAnswerText, correctAnswerText, q_data.book, q_data.page);
+            optionsContainer.appendChild(button);
+        });
+    }
 
-            retry_choice = input("\nXato qilingan savollarni qayta ishlashni xohlaysizmi? (ha/yo'q): ").lower()
-            if retry_choice == 'ha':
-                # Xato qilingan savollarni topish uchun ID lardan foydalanish
-                retry_list = [q for q in questions if q['id'] in [item['id'] for item in batch_incorrect_data]]
-                retry_questions(retry_list) # Xato qilingan savollarni qayta ishlash
+     function checkRetryAnswer(isCorrect, correctAnswer, book, page) {
+         const feedbackDiv = document.getElementById('retry-feedback');
+         const buttons = document.querySelectorAll('#retry-options-container button');
+         buttons.forEach(button => button.disabled = true); // Variantlarni bloklash
 
-        print(f"\n--- {batch_num + 1}-QISM TUGADI ---")
-        if batch_num < num_batches - 1:
-              # 'q' bilan chiqish funksiyasini olib tashladim, har doim davom etadi
-              input("Keyingi qismga o'tish uchun Enter ni bosing...")
-        else:
-             print("\nTest yakunlandi!")
+         if (isCorrect) {
+             feedbackDiv.textContent = "✅ To'g'ri!";
+             feedbackDiv.className = 'feedback-correct';
+         } else {
+             feedbackDiv.textContent = `❌ Noto'g'ri! To'g'ri javob: ${correctAnswer}`;
+             const sourceDiv = document.createElement('div');
+             sourceDiv.className = 'source-info';
+             sourceDiv.textContent = `Manba: ${book || "Noma'lum kitob"}, Sahifa: ${page || "Noma'lum"}`;
+             feedbackDiv.appendChild(sourceDiv);
+             feedbackDiv.className = 'feedback-incorrect';
+         }
+         feedbackDiv.classList.remove('hidden');
+         const nextRetryBtn = document.getElementById('retry-next-button')
+         nextRetryBtn.classList.remove('hidden')
+         nextRetryBtn.disabled = false
+         if (current_retry_question_index >= retry_questions_list_global.length - 1) {
+             nextRetryBtn.textContent = "Keyingi Qism / Natijalar"
+         } else {
+              nextRetryBtn.textContent = "Keyingi Xato Savol"
+          }
+     }
 
-    # Yakuniy natija
-    print("\n--- UMUMIY NATIJA ---")
-    print(f"Siz jami {total_questions} ta savoldan {overall_score} tasiga to'g'ri javob berdingiz.")
-    print(f"Foizda: {overall_score/total_questions*100:.2f}%")
+      function nextRetryQuestion() {
+          current_retry_question_index++;
+          if (current_retry_question_index < retry_questions_list_global.length) {
+              displayRetryQuestion(retry_questions_list_global, current_retry_question_index);
+          } else {
+              console.log("Xato savollar ustida ishlash tugadi.");
+              handleNextBatch(true); // Tugagandan so'ng keyingi qismga yoki natijaga o'tish
+          }
+      }
 
-# --- DASTURNI ISHGA TUSHIRISH ---
-run_quiz(questions_data)
+
+    // --- Boshqa o'zgaruvchilar va funksiyalar ---
+    let currentQuestionIndex = 0;
+    let currentBatchIndex = 0;
+    let score = 0;
+    let batchScore = 0;
+    let incorrectBatchQuestions = []; // Joriy qismdagi xato qilingan savollar
+    let currentBatchQuestions = []; // Joriy qism uchun aralashtirilgan savollar
+    let totalQuestions = questionsData.length;
+    let batchSize = 25;
+    let numBatches = Math.ceil(totalQuestions / batchSize);
+
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackDiv = document.getElementById('feedback');
+    const nextButton = document.getElementById('next-button');
+    const batchResultsArea = document.getElementById('batch-results');
+    const finalResultsArea = document.getElementById('final-results');
+    const startScreen = document.getElementById('start-screen');
+    const quizArea = document.getElementById('quiz-area');
+    const incorrectList = document.getElementById('incorrect-list');
+    const batchResultText = document.getElementById('batch-result-text');
+    const batchResultTitle = document.getElementById('batch-result-title');
+    const retryPrompt = document.getElementById('retry-prompt');
+    const nextBatchButton = document.getElementById('next-batch-button');
+    const finalResultText = document.getElementById('final-result-text');
+    const progressIndicator = document.getElementById('progress-indicator');
+    const retryArea = document.getElementById('retry-area'); // Qayta ishlash maydoni
+
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function startQuiz() {
+        score = 0;
+        currentBatchIndex = 0;
+        startScreen.classList.add('hidden');
+        finalResultsArea.classList.add('hidden');
+        loadBatch();
+    }
+
+    function loadBatch() {
+        const startIndex = currentBatchIndex * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, totalQuestions);
+        const batchData = questionsData.slice(startIndex, endIndex);
+
+        currentBatchQuestions = [...batchData]; // Joriy qism uchun savollarni nusxalash
+        shuffleArray(currentBatchQuestions); // Qism ichidagi savollarni aralashtirish
+
+        currentQuestionIndex = 0;
+        batchScore = 0;
+        incorrectBatchQuestions = [];
+
+        quizArea.classList.remove('hidden');
+        batchResultsArea.classList.add('hidden');
+        retryArea.classList.add('hidden'); // Qayta ishlash maydonini yashirish
+
+        displayQuestion();
+    }
+
+    function displayQuestion() {
+        if (currentQuestionIndex >= currentBatchQuestions.length) {
+            showBatchResults();
+            return;
+        }
+
+        const qData = currentBatchQuestions[currentQuestionIndex];
+        questionText.textContent = qData.question; // Savol raqamisiz
+        progressIndicator.textContent = `Qism ${currentBatchIndex + 1} / ${numBatches} | Savol ${currentQuestionIndex + 1} / ${currentBatchQuestions.length}`;
+
+
+        optionsContainer.innerHTML = ''; // Oldingi variantlarni tozalash
+        feedbackDiv.classList.add('hidden');
+        nextButton.classList.add('hidden');
+        nextButton.disabled = true;
+
+        let options = [...qData.options];
+        const correctAnswerText = qData.correct_answer;
+        shuffleArray(options); // Variantlarni aralashtirish
+
+        options.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            // Tugma bosilganda javobni tekshirish
+            button.onclick = () => checkAnswer(option === correctAnswerText, qData);
+            optionsContainer.appendChild(button);
+        });
+    }
+
+    function checkAnswer(isCorrect, questionData) {
+        const buttons = document.querySelectorAll('.options-container button');
+        buttons.forEach(button => {
+            button.disabled = true; // Javob berilgandan keyin variantlarni bloklash
+            // Agar kerak bo'lsa to'g'ri/noto'g'ri rang berish mumkin
+        });
+
+        feedbackDiv.classList.remove('hidden');
+        if (isCorrect) {
+            feedbackDiv.textContent = "✅ To'g'ri!";
+            feedbackDiv.className = 'feedback-correct';
+            batchScore++;
+            score++;
+        } else {
+            feedbackDiv.innerHTML = `❌ Noto'g'ri! To'g'ri javob: ${questionData.correct_answer}`;
+            const sourceDiv = document.createElement('div');
+            sourceDiv.className = 'source-info';
+            sourceDiv.textContent = `Manba: ${questionData.book || "Noma'lum kitob"}, Sahifa: ${questionData.page || "Noma'lum"}`;
+            feedbackDiv.appendChild(sourceDiv);
+            feedbackDiv.className = 'feedback-incorrect';
+            incorrectBatchQuestions.push(questionData); // Xato savolni ro'yxatga qo'shish
+        }
+        nextButton.classList.remove('hidden');
+        nextButton.disabled = false;
+
+         // Keyingi savol yoki qism tugashini tekshirish
+         if (currentQuestionIndex >= currentBatchQuestions.length - 1) {
+            nextButton.textContent = "Qism Natijalarini Ko'rish";
+        } else {
+            nextButton.textContent = "Keyingi Savol";
+        }
+
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        displayQuestion(); // Keyingi savolni ko'rsatish yoki natijalarga o'tish
+    }
+
+    function showBatchResults() {
+        quizArea.classList.add('hidden');
+        retryArea.classList.add('hidden');
+        batchResultsArea.classList.remove('hidden');
+        batchResultTitle.textContent = `${currentBatchIndex + 1}-Qism Natijasi`;
+        batchResultText.textContent = `Siz bu qismdagi ${currentBatchQuestions.length} ta savoldan ${batchScore} tasiga to'g'ri javob berdingiz.`;
+
+        incorrectList.innerHTML = ''; // Oldingi xatolar ro'yxatini tozalash
+        if (incorrectBatchQuestions.length > 0) {
+            // Xato savollarni ID bo'yicha tartiblab ko'rsatish
+            incorrectBatchQuestions.sort((a, b) => a.id - b.id);
+            incorrectBatchQuestions.forEach(q => {
+                const li = document.createElement('li');
+                li.textContent = `ID ${q.id}: ${q.question}`; // ID bilan ko'rsatish
+                incorrectList.appendChild(li);
+            });
+            retryPrompt.classList.remove('hidden');
+            nextBatchButton.classList.add('hidden');
+        } else {
+            incorrectList.innerHTML = '<li>Xato qilingan savollar yo\'q!</li>';
+            retryPrompt.classList.add('hidden');
+             handleNextBatch(true); // Agar xato bo'lmasa, avtomatik keyingi qismga
+        }
+    }
+
+     function handleNextBatch(afterRetry) {
+         // Agar qayta ishlashdan keyin chaqirilgan bo'lsa, retry maydonini yashirish
+         if(afterRetry) {
+             retry_area.classList.add('hidden');
+             batchResultsArea.classList.add('hidden'); // Natijalar ham yashiriladi
+         } else {
+             batchResultsArea.classList.add('hidden');
+             retryPrompt.classList.add('hidden'); // Qayta ishlash so'rovini yashirish
+         }
+
+
+        currentBatchIndex++;
+        if (currentBatchIndex < numBatches) {
+            loadBatch(); // Keyingi qismni yuklash
+        } else {
+            showFinalResults(); // Yakuniy natijalarni ko'rsatish
+        }
+    }
+
+    function showFinalResults() {
+        quizArea.classList.add('hidden');
+        batchResultsArea.classList.add('hidden');
+        retryArea.classList.add('hidden');
+        finalResultsArea.classList.remove('hidden');
+        finalResultText.textContent = `Siz jami ${totalQuestions} ta savoldan ${score} tasiga to'g'ri javob berdingiz. (${((score / totalQuestions) * 100).toFixed(2)}%)`;
+    }
+
+</script>
+
+</body>
+</html>
