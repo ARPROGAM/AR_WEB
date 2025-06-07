@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Loop (Advanced)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #0056b3;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #video-container {
+            width: 100%;
+            max-width: 800px; /* Video o'lchamini cheklash */
+            aspect-ratio: 16 / 9; /* 16:9 formatida saqlash */
+            background-color: black;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #videoPlayer {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-align: center;
+            color: #007bff;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        button#stopButton {
+            background-color: #dc3545;
+            color: white;
+        }
+        button#stopButton:hover {
+            background-color: #c82333;
+        }
+        button#startButton {
+            background-color: #28a745;
+            color: white;
+        }
+        button#startButton:hover {
+            background-color: #218838;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .info {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>YouTube Shorts Sikli</h1>
+    <p class="info">Sahifa yuklanganda videolar avtomatik ravishda ketma-ket ijro etiladi.</p>
+
+    <div id="video-container">
+        <!-- YouTube pleeri shu yerga yuklanadi -->
+        <div id="videoPlayer"></div>
+    </div>
+
+    <div id="status">Videolar yuklanmoqda...</div>
+
+    <div class="controls">
+        <button id="stopButton">Siklni to'xtatish</button>
+        <button id="startButton" disabled>Siklni boshlash</button>
+    </div>
+
+    <div class="info">
+        <p><strong>Eslatma:</strong> YouTube'ning avtomatik ijro siyosatlari sababli, video avtomatik ravishda ovozsiz boshlanishi mumkin. Ovozni yoqish uchun video pleer tugmasini bosishingiz kerak bo'ladi.</p>
+        <p>Har bir video tugagandan so'ng, keyingisi avtomatik ravishda yuklanadi.</p>
+        <p><strong>Fonda ishlash / Ekran qulfi:</strong> Ekran qulflanishini oldini olishga uriniladi. Biroq, ba'zi mobil brauzerlar va operatsion tizimlar fon rejimida yoki boshqa yorliqqa o'tganda skript ijrosini to'xtatib qo'yishi mumkin. Eng yaxshi natija uchun ushbu yorliqni faol qoldirish tavsiya etiladi.</p>
+    </div>
+
+    <!-- YouTube IFrame Player API scriptini yuklash -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script>
+        const shorts = [
+            "0GncAgJHlTU", "mmILvCb1Xgc", "efoBs9GJqv0", "XqxXiSHgsQQ", "yA2wek6wr-c",
+            "YKvmlno3aMc", "Hhxd0rQDOvs", "CwrwOF0aj4g", "deipMsp2u6I", "1zdaHrVlfjE",
+            "K46BWn2sMU0", "iMjf9OfNBRI", "wI9-wohtGuY", "Wmh92X5TPIQ", "LFhEoSXo5Yc"
+        ];
+        // Kuting vaqtini 0 ga o'rnatamiz, chunki video tugashini kutamiz.
+        // Agar videolar o'rtasida pauza kerak bo'lsa, bu yerga soniya kiriting.
+        const delayBetweenVideos = 0; 
+
+        let player; // YouTube pleer obyekti
+        let currentShortIndex = 0;
+        let isLoopRunning = false;
+        let wakeLock = null; // Wake Lock API obyekti
+
+        const statusDisplay = document.getElementById('status');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+
+        // Tugmalar holatini yangilash
+        function updateButtons() {
+            startButton.disabled = isLoopRunning;
+            stopButton.disabled = !isLoopRunning;
+        }
+
+        // Wake Lockni talab qilish
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    statusDisplay.textContent += " (Ekran qulflanishi oldi olinmoqda)";
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock released');
+                        statusDisplay.textContent = statusDisplay.textContent.replace(' (Ekran qulflanishi oldi olinmoqda)', '');
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                    statusDisplay.textContent += " (Ekran qulflanishini oldini olishda xatolik: " + err.message + ")";
+                }
+            } else {
+                statusDisplay.textContent += " (Brauzer Wake Lockni qo'llab-quvvatlamaydi)";
+            }
+        }
+
+        // Wake Lockni bo'shatish
+        function releaseWakeLock() {
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
+        // Keyingi videoni yuklash va ijro etish
+        function loadNextShort() {
+            if (!isLoopRunning) {
+                statusDisplay.textContent = 'Sikl to\'xtatildi.';
+                return;
+            }
+
+            if (currentShortIndex >= shorts.length) {
+                currentShortIndex = 0; // Siklni qayta boshlash
+            }
+
+            const vid = shorts[currentShortIndex];
+            // loadVideoById: Pleerni yangi video bilan yuklaydi
+            // autoplay=1 (APIda default bo'lishi kerak) va boshqa variantlar
+            player.loadVideoById({
+                videoId: vid,
+                events: {
+                    'onStateChange': onPlayerStateChange // Har video uchun state change'ni tinglash
+                },
+                playerVars: {
+                    'autoplay': 1,      // Avtomatik ijro
+                    'controls': 1,      // Boshqaruv elementlari
+                    'modestbranding': 1, // YouTube logotipini yashirish
+                    'rel': 0,           // Aloqador videolarni ko'rsatmaslik
+                    'playlist': vid,    // loop=1 bilan birga ishlatiladi
+                    'loop': 1,          // Bu faqat bitta videoni cheksiz takrorlaydi. Agar ro'yxatni takrorlamoqchi bo'lsak, uni ishlatmaymiz va API orqali keyingisiga o'tamiz.
+                    // 'mute': 1 // Agar avtomatik ijro muammosi bo'lsa, ovozsiz boshlash uchun
+                }
+            });
+
+            statusDisplay.textContent = `[${new Date().toLocaleTimeString()}] ${currentShortIndex + 1}/${shorts.length} video ijro etilmoqda: ${vid}`;
+            console.log(`Yuklanmoqda: ${vid}`);
+
+            currentShortIndex++;
+        }
+
+        // YouTube Player tayyor bo'lganda chaqiriladi
+        function onPlayerReady(event) {
+            console.log('Player tayyor:', event);
+            // Pleer tayyor bo'lganda siklni boshlash
+            startLoop();
+        }
+
+        // Player holati o'zgarganda chaqiriladi
+        function onPlayerStateChange(event) {
+            console.log('Player holati o\'zgardi:', event.data);
+            if (event.data === YT.PlayerState.ENDED) {
+                // Video tugaganini aniqlash
+                statusDisplay.textContent = `[${new Date().toLocaleTimeString()}] Video tugadi. Keyingisiga o'tmoqda...`;
+                if (delayBetweenVideos > 0) {
+                    setTimeout(loadNextShort, delayBetweenVideos * 1000);
+                } else {
+                    loadNextShort();
+                }
+            } else if (event.data === YT.PlayerState.PLAYING) {
+                // Video ijro etila boshlaganda
+                // player.isMuted() va player.getVolume() bilan ovoz holatini tekshirish mumkin
+            }
+        }
+
+        // YouTube IFrame Player API yuklanganda avtomatik chaqiriladi
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('videoPlayer', {
+                height: '100%', // CSS orqali boshqariladi
+                width: '100%',  // CSS orqali boshqariladi
+                playerVars: {
+                    'controls': 1,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    // 'mute': 1 // Agar avtomatik ijro muammosi bo'lsa, ovozsiz boshlash uchun
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        // Siklni boshlash
+        function startLoop() {
+            if (isLoopRunning) return;
+            isLoopRunning = true;
+            updateButtons();
+            statusDisplay.textContent = 'Sikl boshlandi...';
+            
+            requestWakeLock(); // Ekran qulflanishini oldini olishga urinish
+
+            // Birinchi videoni yuklash
+            loadNextShort(); 
+        }
+
+        // Siklni to'xtatish
+        function stopLoop() {
+            if (!isLoopRunning) return;
+            isLoopRunning = false;
+            if (player && typeof player.stopVideo === 'function') {
+                player.stopVideo(); // Videoni to'xtatish
+            }
+            releaseWakeLock(); // Wake Lockni bo'shatish
+            statusDisplay.textContent = 'Sikl to\'xtatildi.';
+            updateButtons();
+        }
+
+        // Sahifa to'liq yuklanganda tugma voqealarini sozlash
+        document.addEventListener('DOMContentLoaded', () => {
+            startButton.addEventListener('click', startLoop);
+            stopButton.addEventListener('click', stopLoop);
+            updateButtons(); // Dastlabki tugma holatini sozlash
+            // onYouTubeIframeAPIReady funksiyasi avtomatik chaqiriladi
+            // va u ichida onPlayerReady orqali startLoopni chaqiradi.
+        });
+
+    </script>
+</body>
+</html>
