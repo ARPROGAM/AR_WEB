@@ -10,19 +10,18 @@
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background-color: #000;
+            overflow: hidden; /* Scrollni o'chiramiz */
+            background-color: #000; /* Qora fon */
             color: #fff;
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            width: 100vw;
+            height: 100vh; /* To'liq ekran balandligi */
+            width: 100vw; /* To'liq ekran kengligi */
             touch-action: manipulation; /* Barmoqni siljitishni nazorat qilish */
             -webkit-tap-highlight-color: transparent; /* Chrome'dagi tugma bosish effektini o'chirish */
-            cursor: pointer; /* Boshqa tugma yo'qligi uchun kursor shakli */
         }
 
         #player-container {
@@ -36,26 +35,29 @@
         }
 
         #player {
-            width: 100vw;
+            /* Vertikal (portrait) videolarga moslashamiz */
+            width: 100vw; /* Kenglikni to'liq olsin */
             height: calc(100vw * 16 / 9); /* 9:16 nisbatda balandlikni hisoblaymiz */
-            max-height: 100vh;
+            max-height: 100vh; /* Maksimal balandlik ekran balandligi bo'lsin */
             max-width: calc(100vh * 9 / 16);
             
+            /* Videoni konteyner ichida markazga joylashtiramiz */
             display: block;
             margin: auto;
-            transform: translateY(0);
         }
 
+        /* Agar balandligi kengligidan ko'proq bo'lsa (ya'ni 9:16 ni to'liq sig'dirsa) */
         @media (orientation: portrait) {
             #player {
-                height: 100vh;
-                width: calc(100vh * 9 / 16);
+                height: 100vh; /* Balandlikni to'liq olsin */
+                width: calc(100vh * 9 / 16); /* 9:16 nisbatda kenglikni hisoblaymiz */
             }
         }
+        /* Agar kengligi balandligidan ko'proq bo'lsa (ya'ni landscape) */
         @media (orientation: landscape) {
             #player {
-                width: 100vw;
-                height: calc(100vw * 16 / 9);
+                width: 100vw; /* Kenglikni to'liq olsin */
+                height: calc(100vw * 16 / 9); /* Balandlikni hisoblaymiz */
             }
         }
 
@@ -69,69 +71,12 @@
             border-radius: 5px;
             font-size: 0.9em;
             z-index: 10;
-            white-space: nowrap;
+            white-space: nowrap; /* Matn bir qatorda qolsin */
             opacity: 0.8;
             transition: opacity 0.3s ease;
         }
         #status-message.hidden {
             opacity: 0;
-        }
-
-        #unmute-button {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 50px;
-            font-size: 1.1em;
-            cursor: pointer;
-            z-index: 10;
-            display: none; /* Dastlab yashirilgan */
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-        #unmute-button.visible {
-            opacity: 1;
-            display: block;
-        }
-        #unmute-button:hover {
-            background-color: rgba(0, 0, 0, 0.9);
-        }
-        
-        #initial-tap-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
-            font-size: 1.5em;
-            text-align: center;
-            z-index: 100; /* Barcha elementlarning ustida bo'lishi uchun */
-            cursor: pointer;
-            transition: opacity 0.5s ease;
-            opacity: 1;
-        }
-        #initial-tap-overlay.hidden {
-            opacity: 0;
-            pointer-events: none; /* Yashirilganda hodisalarni o'tkazib yuborsin */
-        }
-        #initial-tap-overlay p {
-            margin-bottom: 20px;
-        }
-        #initial-tap-overlay span {
-            font-size: 0.8em;
-            opacity: 0.7;
         }
     </style>
 </head>
@@ -139,13 +84,6 @@
     <div id="player-container">
         <div id="player"></div>
         <div id="status-message">Yuklanmoqda...</div>
-        <button id="unmute-button">Ovozni o'chirish</button>
-    </div>
-
-    <!-- Birinchi teginish uchun overlay -->
-    <div id="initial-tap-overlay">
-        <p>Davom etish va ovozni yoqish uchun ekranga teging.</p>
-        <span>(Videolar ovozsiz boshlanadi va keyingi videoga o'tishda avtomatik o'chadi)</span>
     </div>
 
     <script>
@@ -155,19 +93,16 @@
             "YKvmlno3aMc", "Hhxd0rQDOvs", "CwrwOF0aj4g", "deipMsp2u6I", "1zdaHrVlfjE",
             "K46BWn2sMU0", "iMjf9OfNBRI", "wI9-wohtGuY", "Wmh92X5TPIQ", "LFhEoSXo5Yc"
         ];
-        const transitionDelaySeconds = 8; // Keyingi videoga o'tish vaqti (sekundlarda)
+        const firstVideoDelaySeconds = 1; // Birinchi videodan keyingi o'tish vaqti (sekundlarda)
+        const subsequentVideoDelaySeconds = 8; // Keyingi videolardan keyingi o'tish vaqti (sekundlarda)
         // --- KONFIGURATSIYA TUGADI ---
 
         let player;
         let shuffledShorts = [];
         let currentVideoIndex = 0;
         let transitionTimer;
-        let isMuted = true;
-        let hasInteracted = false; // Foydalanuvchi bilan o'zaro aloqa bo'lganligini bildiradi
-
+        
         const statusMessage = document.getElementById('status-message');
-        const unmuteButton = document.getElementById('unmute-button');
-        const initialTapOverlay = document.getElementById('initial-tap-overlay');
 
         // YouTube IFrame Player API yuklash
         function loadYouTubeAPI() {
@@ -188,7 +123,7 @@
 
         // YouTube Player tayyor bo'lganda chaqiriladi
         function onYouTubeIframeAPIReady() {
-            shuffledShorts = shuffleArray([...youtubeShortsIds]);
+            shuffledShorts = shuffleArray([...youtubeShortsIds]); // Videolarni aralashtirish
             showStatus('Player yuklanmoqda...');
 
             player = new YT.Player('player', {
@@ -196,16 +131,16 @@
                 width: '100%',
                 videoId: shuffledShorts[currentVideoIndex],
                 playerVars: {
-                    'controls': 0,
-                    'autoplay': 1,
-                    'mute': 1, // Dastlab ovozsiz boshlash
-                    'loop': 1,
-                    'playlist': shuffledShorts[currentVideoIndex],
-                    'disablekb': 1,
-                    'fs': 0,
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'playsinline': 1
+                    'controls': 0,        // Kontrollarni yashirish
+                    'autoplay': 1,        // Avtomatik ijro qilishga urinish (brauzerga bog'liq, ovozli)
+                    // 'mute': 1,         // Ovozni avtomatik o'chirish OLIB TASHLANDI
+                    'loop': 1,            // Video tugasa, o'zini takrorlasin (garchi biz keyingisiga o'tsak ham)
+                    'playlist': shuffledShorts[currentVideoIndex], // Loop uchun
+                    'disablekb': 1,       // Klaviatura nazoratini o'chirish
+                    'fs': 0,              // To'liq ekran tugmasini o'chirish
+                    'rel': 0,             // Tegishli videolarni ko'rsatmaslik
+                    'modestbranding': 1,  // Kichik YouTube logotipi
+                    'playsinline': 1      // iOS'da to'liq ekranga o'tmaslik
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -217,8 +152,7 @@
 
         // Player tayyor bo'lganda
         function onPlayerReady(event) {
-            event.target.mute(); // Qo'shimcha ovozsiz qilish
-            isMuted = true;
+            // event.target.unMute(); // Avtomatik unmute qilishga urinish (brauzerga bog'liq)
             showStatus('Yuklandi. O\'ynatish boshlanmoqda...', true);
             event.target.playVideo();
         }
@@ -227,22 +161,13 @@
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 clearTimeout(transitionTimer);
-                transitionTimer = setTimeout(playNextVideo, transitionDelaySeconds * 1000);
+                let delay = (currentVideoIndex === 0) ? firstVideoDelaySeconds : subsequentVideoDelaySeconds;
+                transitionTimer = setTimeout(playNextVideo, delay * 1000);
                 showStatus(`O'ynatilmoqda: ${currentVideoIndex + 1}/${shuffledShorts.length}`, true);
-                // Agar ovoz yoqilgan bo'lsa, mute/unmute tugmasini ko'rsatamiz
-                if (!isMuted && hasInteracted) {
-                    unmuteButton.classList.add('visible');
-                    unmuteButton.textContent = 'Ovozni o\'chirish';
-                } else if (isMuted && hasInteracted) {
-                    unmuteButton.classList.add('visible'); // Ovoz yoqilmagan bo'lsa ham ko'rsatamiz
-                    unmuteButton.textContent = 'Ovozni yoqish';
-                }
             } else if (event.data === YT.PlayerState.BUFFERING) {
                 showStatus('Buferlanmoqda...');
-                unmuteButton.classList.remove('visible'); // Buferlanayotganda yashiramiz
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showStatus('To\'xtatilgan.');
-                unmuteButton.classList.add('visible'); // To'xtatilganda ko'rsatamiz
             }
         }
 
@@ -251,21 +176,19 @@
             console.error('YouTube Player Error:', event.data);
             showStatus(`Xatolik: ${event.data}. Keyingisiga o'tilmoqda...`, true);
             clearTimeout(transitionTimer);
-            transitionTimer = setTimeout(playNextVideo, 3000);
+            transitionTimer = setTimeout(playNextVideo, 3000); // Qisqa kutish bilan keyingiga o'tamiz
         }
 
         // Keyingi videoni ijro etish
         function playNextVideo() {
             currentVideoIndex++;
             if (currentVideoIndex >= shuffledShorts.length) {
-                currentVideoIndex = 0;
-                shuffledShorts = shuffleArray([...youtubeShortsIds]);
+                currentVideoIndex = 0; // Ro'yxat tugasa, boshidan boshlash
+                shuffledShorts = shuffleArray([...youtubeShortsIds]); // Yangidan aralashtirish
             }
             const nextVideoId = shuffledShorts[currentVideoIndex];
-            player.loadVideoById(nextVideoId, 0);
-            player.mute(); // Har doim ovozsiz boshlash
-            isMuted = true;
-            unmuteButton.classList.remove('visible'); // Keyingi videoga o'tishda tugmani yashiramiz
+            player.loadVideoById(nextVideoId, 0); // Yangi videoni yuklash, 0-sekunddan boshlab
+            // player.unMute(); // Har doim ovozli boshlashga urinish
             showStatus(`Keyingi video yuklanmoqda: ${currentVideoIndex + 1}/${shuffledShorts.length}`);
         }
 
@@ -278,45 +201,7 @@
             if (autoHide) {
                 statusHideTimer = setTimeout(() => {
                     statusMessage.classList.add('hidden');
-                }, 3000);
-            }
-        }
-
-        // Ovozni yoqish / o'chirish tugmasining funksiyasi
-        unmuteButton.addEventListener('click', (event) => {
-            event.stopPropagation(); // Ekranga teginish hodisasini to'xtatish
-            if (player) {
-                if (isMuted) {
-                    player.unMute();
-                    unmuteButton.textContent = 'Ovozni o\'chirish';
-                    showStatus('Ovoz yoqildi.', true);
-                } else {
-                    player.mute();
-                    unmuteButton.textContent = 'Ovozni yoqish';
-                    showStatus('Ovoz o\'chirildi.', true);
-                }
-                isMuted = !isMuted;
-            }
-        });
-
-        // Ekranga birinchi teginish hodisasi
-        document.body.addEventListener('touchstart', handleInitialInteraction, { once: true });
-        document.body.addEventListener('mousedown', handleInitialInteraction, { once: true });
-
-        function handleInitialInteraction() {
-            if (!hasInteracted) {
-                hasInteracted = true;
-                initialTapOverlay.classList.add('hidden'); // Overlayni yashirish
-                // Ovozni yoqish
-                if (player && isMuted) {
-                    player.unMute();
-                    isMuted = false;
-                    unmuteButton.textContent = 'Ovozni o\'chirish';
-                    unmuteButton.classList.add('visible'); // Tugmani ko'rsatish
-                    showStatus('Ovoz yoqildi.', true);
-                }
-                // Agar player hali tayyor bo'lmasa, onPlayerReady ichida ovoz yoqiladi
-                // Bu yerda faqat user interaktsiyasi flagini sozlaymiz
+                }, 3000); // 3 sekunddan keyin yashirish
             }
         }
 
