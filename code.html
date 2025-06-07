@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Looper (Mobile)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>YouTube Shorts Looper</h1>
+    <p>Barcha YouTube Shorts videolarini ma'lum vaqt oralig'ida ochish uchun "Start Loop" tugmasini bosing. Har bir video yangi yorliqda ochiladi.</p>
+    <button id="startButton">Start Loop</button>
+    <div id="status"></div>
+
+    <script>
+        const shorts = [
+            "0GncAgJHlTU", "mmILvCb1Xgc", "efoBs9GJqv0", "XqxXiSHgsQQ", "yA2wek6wr-c",
+            "YKvmlno3aMc", "Hhxd0rQDOvs", "CwrwOF0aj4g", "deipMsp2u6I", "1zdaHrVlfjE",
+            "K46BWn2sMU0", "iMjf9OfNBRI", "wI9-wohtGuY", "Wmh92X5TPIQ", "LFhEoSXo5Yc"
+        ];
+        const delaySeconds = 5; // Kutish vaqti (sekundlarda)
+        let currentShortIndex = 0;
+        let loopInterval;
+
+        document.getElementById('startButton').addEventListener('click', startLoop);
+
+        function startLoop() {
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('status').textContent = 'Loop boshlandi...';
+            
+            // Birinchi videoni darhol ochamiz
+            openNextShort();
+
+            // Keyingi videolarni interval bilan ochamiz
+            loopInterval = setInterval(openNextShort, delaySeconds * 1000);
+        }
+
+        function openNextShort() {
+            if (currentShortIndex >= shorts.length) {
+                currentShortIndex = 0; // Siklni qayta boshlash
+                //clearInterval(loopInterval); // Agar bir marta tugashini istasangiz
+                //document.getElementById('status').textContent = 'Loop tugadi. Qayta boshlash uchun tugmani bosing.';
+                //document.getElementById('startButton').disabled = false;
+                //return;
+            }
+
+            const vid = shorts[currentShortIndex];
+            const loopUrl = `https://www.youtube.com/watch?v=${vid}&loop=1&playlist=${vid}`;
+            
+            document.getElementById('status').textContent = `[${new Date().toLocaleTimeString()}] Ochilmoqda: ${loopUrl}`;
+            
+            // Yangi yorliqda ochish
+            window.open(loopUrl, '_blank');
+
+            currentShortIndex++;
+        }
+    </script>
+</body>
+</html>
