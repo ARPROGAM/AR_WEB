@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YouTube Shorts Looper</title>
+    <meta name="description" content="Avtomatik ravishda YouTube Shorts videolarini aralash tartibda ijro etuvchi looper.">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Scrollni o'chiramiz */
+            background-color: #000; /* Qora fon */
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* To'liq ekran balandligi */
+            width: 100vw; /* To'liq ekran kengligi */
+            touch-action: manipulation; /* Barmoqni siljitishni nazorat qilish */
+        }
+
+        #player-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+
+        #player {
+            /* Vertikal (portrait) videolarga moslashamiz */
+            width: 100vw; /* Kenglikni to'liq olsin */
+            height: calc(100vw * 16 / 9); /* 9:16 nisbatda balandlikni hisoblaymiz */
+            max-height: 100vh; /* Maksimal balandlik ekran balandligi bo'lsin */
+            max-width: calc(100vh * 9 / 16); /* Maksimal kenglik ekran balandligiga qarab hisoblanadi */
+            
+            /* Videoni konteyner ichida markazga joylashtiramiz */
+            display: block;
+            margin: auto;
+            transform: translateY(0); /* Default holat */
+        }
+
+        /* Agar balandligi kengligidan ko'proq bo'lsa (ya'ni 9:16 ni to'liq sig'dirsa) */
+        @media (orientation: portrait) {
+            #player {
+                height: 100vh; /* Balandlikni to'liq olsin */
+                width: calc(100vh * 9 / 16); /* 9:16 nisbatda kenglikni hisoblaymiz */
+            }
+        }
+        /* Agar kengligi balandligidan ko'proq bo'lsa (ya'ni landscape) */
+        @media (orientation: landscape) {
+            #player {
+                width: 100vw; /* Kenglikni to'liq olsin */
+                height: calc(100vw * 16 / 9); /* Balandlikni hisoblaymiz */
+            }
+        }
+
+        #status-message {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            z-index: 10;
+        }
+
+        #unmute-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            z-index: 10;
+            display: none; /* Dastlab yashirilgan */
+            transition: opacity 0.3s ease;
+        }
+        #unmute-button:hover {
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <div id="player"></div>
+        <div id="status-message">Yuklanmoqda...</div>
+        <button id="unmute-button">Ovozni yoqish</button>
+    </div>
+
+    <script>
+        // --- KONFIGURATSIYA ---
+        const youtubeShortsIds = [
+            "0GncAgJHlTU", "mmILvCb1Xgc", "efoBs9GJqv0", "XqxXiSHgsQQ", "yA2wek6wr-c",
+            "YKvmlno3aMc", "Hhxd0rQDOvs", "CwrwOF0aj4g", "deipMsp2u6I", "1zdaHrVlfjE",
+            "K46BWn2sMU0", "iMjf9OfNBRI", "wI9-wohtGuY", "Wmh92X5TPIQ", "LFhEoSXo5Yc"
+        ];
+        const transitionDelaySeconds = 8; // Keyingi videoga o'tish vaqti (sekundlarda)
+        // --- KONFIGURATSIYA TUGADI ---
+
+        let player;
+        let shuffledShorts = [];
+        let currentVideoIndex = 0;
+        let transitionTimer;
+        let isMuted = true; // Dastlab ovozsiz holat
+
+        const statusMessage = document.getElementById('status-message');
+        const unmuteButton = document.getElementById('unmute-button');
+
+        // YouTube IFrame Player API yuklash
+        function loadYouTubeAPI() {
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        // Fisher-Yates shuffle algoritmi
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Elementlarni almashtirish
+            }
+            return array;
+        }
+
+        // YouTube Player tayyor bo'lganda chaqiriladi
+        function onYouTubeIframeAPIReady() {
+            shuffledShorts = shuffleArray([...youtubeShortsIds]); // Videolarni aralashtirish
+            statusMessage.textContent = 'Player yuklanmoqda...';
+
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                videoId: shuffledShorts[currentVideoIndex],
+                playerVars: {
+                    'controls': 0,        // Kontrollarni yashirish
+                    'autoplay': 1,        // Avtomatik ijro qilishga urinish (brauzerga bog'liq)
+                    'mute': 1,            // Dastlab ovozsiz boshlash
+                    'loop': 1,            // Video tugasa, o'zini takrorlasin (garchi biz keyingisiga o'tsak ham)
+                    'playlist': shuffledShorts[currentVideoIndex], // Loop uchun
+                    'disablekb': 1,       // Klaviatura nazoratini o'chirish
+                    'fs': 0,              // To'liq ekran tugmasini o'chirish
+                    'rel': 0,             // Tegishli videolarni ko'rsatmaslik
+                    'modestbranding': 1,  // Kichik YouTube logotipi
+                    'playsinline': 1      // iOS'da to'liq ekranga o'tmaslik
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        // Player tayyor bo'lganda
+        function onPlayerReady(event) {
+            event.target.mute(); // Qo'shimcha ovozsiz qilish (ba'zi brauzerlarda autoplay uchun muhim)
+            isMuted = true;
+            statusMessage.textContent = 'Yuklandi. O\'ynatish boshlanmoqda...';
+            event.target.playVideo();
+            unmuteButton.style.display = 'block'; // Ovozni yoqish tugmasini ko'rsatish
+        }
+
+        // Player holati o'zgarganda
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                // Video o'ynay boshlaganda, keyingi videoga o'tish timerini sozlash
+                clearTimeout(transitionTimer);
+                transitionTimer = setTimeout(playNextVideo, transitionDelaySeconds * 1000);
+                statusMessage.textContent = `O'ynatilmoqda: ${currentVideoIndex + 1}/${shuffledShorts.length}`;
+            } else if (event.data === YT.PlayerState.ENDED) {
+                // Video tugasa ham, bizning timerimiz ishga tushadi, shuning uchun bu qism shart emas
+                // Faqatgina agar timerdan oldin video tugasa, bu qism muhim bo'lardi.
+                // Biz 8 soniyalik qat'iy o'tishni istaymiz.
+            } else if (event.data === YT.PlayerState.BUFFERING) {
+                statusMessage.textContent = 'Buferlanmoqda...';
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                statusMessage.textContent = 'To\'xtatilgan.';
+            }
+        }
+
+        // Player xatolik berganida
+        function onPlayerError(event) {
+            console.error('YouTube Player Error:', event.data);
+            statusMessage.textContent = `Xatolik yuz berdi: ${event.data}. Keyingisiga o'tilmoqda...`;
+            // Xatolikda ham keyingi videoga o'tish
+            clearTimeout(transitionTimer);
+            transitionTimer = setTimeout(playNextVideo, 3000); // Qisqa kutish bilan keyingiga o'tamiz
+        }
+
+        // Keyingi videoni ijro etish
+        function playNextVideo() {
+            currentVideoIndex++;
+            if (currentVideoIndex >= shuffledShorts.length) {
+                currentVideoIndex = 0; // Ro'yxat tugasa, boshidan boshlash
+                shuffledShorts = shuffleArray([...youtubeShortsIds]); // Yangidan aralashtirish
+            }
+            const nextVideoId = shuffledShorts[currentVideoIndex];
+            player.loadVideoById(nextVideoId, 0); // Yangi videoni yuklash, 0-sekunddan boshlab
+            player.mute(); // Har doim ovozsiz boshlash
+            isMuted = true;
+            unmuteButton.style.display = 'block'; // Ovoz tugmasini qayta ko'rsatish
+            statusMessage.textContent = `Keyingi video yuklanmoqda: ${currentVideoIndex + 1}/${shuffledShorts.length}`;
+        }
+
+        // Ovozni yoqish / o'chirish
+        unmuteButton.addEventListener('click', () => {
+            if (player) {
+                if (isMuted) {
+                    player.unMute();
+                    unmuteButton.textContent = 'Ovozni o\'chirish';
+                    statusMessage.textContent = 'Ovoz yoqildi.';
+                } else {
+                    player.mute();
+                    unmuteButton.textContent = 'Ovozni yoqish';
+                    statusMessage.textContent = 'Ovoz o\'chirildi.';
+                }
+                isMuted = !isMuted;
+            }
+        });
+
+        // Sahifa yuklanganda YouTube API'ni yuklash
+        window.addEventListener('load', loadYouTubeAPI);
+    </script>
+</body>
+</html>
