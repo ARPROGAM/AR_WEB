@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Looper (Mobile)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        /* Tugma olib tashlanganligi sababli, uning stillari endi kerak emas */
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>YouTube Shorts Looper</h1>
+    <p>Barcha YouTube Shorts videolarini ma'lum vaqt oralig'ida avtomatik ravishda ochish boshlanadi. Har bir video yangi yorliqda ochiladi.</p>
+    <div id="status"></div>
+
+    <script>
+        // Yangi YouTube Shorts video IDlari
+        const shorts = [
+            "pzYl32tnRBQ", // https://youtube.com/shorts/pzYl32tnRBQ
+            "FyeVO0vPhVE", // https://youtube.com/shorts/FyeVO0vPhVE
+            "Wmh92X5TPIQ", // https://youtube.com/shorts/Wmh92X5TPIQ
+            "4T0r-ia30Lw", // https://youtube.com/shorts/4T0r-ia30Lw
+            "ayPu2hpps7o", // https://youtube.com/shorts/ayPu2hpps7o
+            "vHlWwABdGAo", // https://youtube.com/shorts/vHlWwABdGAo
+            "1bU8clqyWS0"  // https://youtube.com/shorts/1bU8clqyWS0
+        ];
+        const delaySeconds = 5; // Har bir video orasidagi kutish vaqti (sekundlarda)
+        let currentShortIndex = 0;
+        let loopInterval;
+
+        // Sahifa yuklanganda loopni avtomatik boshlash
+        document.addEventListener('DOMContentLoaded', startLoop);
+
+        function startLoop() {
+            document.getElementById('status').textContent = 'YouTube Shorts loop avtomatik boshlandi...';
+            
+            // Birinchi videoni darhol ochamiz
+            openNextShort();
+
+            // Keyingi videolarni belgilangan interval bilan ochamiz
+            loopInterval = setInterval(openNextShort, delaySeconds * 1000);
+        }
+
+        function openNextShort() {
+            if (currentShortIndex >= shorts.length) {
+                currentShortIndex = 0; // Video ro'yxati tugagach, boshidan boshlash
+            }
+
+            const vid = shorts[currentShortIndex];
+            // &loop=1&playlist=${vid} parametrlari videoning ochilgandan keyin o'zini takrorlashini ta'minlaydi.
+            const loopUrl = `https://www.youtube.com/watch?v=${vid}&loop=1&playlist=${vid}`;
+            
+            document.getElementById('status').textContent = `[${new Date().toLocaleTimeString()}] Ochilmoqda: ${loopUrl}`;
+            
+            // Yangi yorliqda ochish.
+            // Eslatma: Brauzerlar to'g'ridan-to'g'ri foydalanuvchi harakatidan kelib chiqmagan pop-up'larni bloklashi mumkin.
+            // Ushbu sayt uchun pop-up blokirovka funksiyasini o'chirib qo'yishingiz kerak bo'lishi mumkin.
+            window.open(loopUrl, '_blank');
+
+            currentShortIndex++;
+        }
+
+        // Asosiy sahifani har 1 daqiqada avtomatik yangilash
+        // Bu skriptning doimiy ravishda ishlashini va yangi yorliqlar ochilishini ta'minlashga yordam beradi.
+        // Brauzer pop-up blokirovkalari yangilanishdan keyin yana faollashishi mumkinligini unutmang.
+        setTimeout(function() {
+            location.reload();
+        }, 60 * 1000); // 60 sekund * 1000 millisekund/sekund = 1 daqiqa
+    </script>
+</body>
+</html>
