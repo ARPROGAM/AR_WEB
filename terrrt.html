@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Pleyer Namuna</title>
+    <style>
+        /* Sahifaga asosiy uslublar */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Video uchun konteyner */
+        .video-container {
+            width: 100%;
+            max-width: 900px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Sarlavha uchun uslub */
+        .video-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #1c1e21;
+        }
+
+        /* Videoni moslashuvchan qilish uchun o'rovchi (wrapper) */
+        .video-wrapper {
+            position: relative;
+            /* 16:9 nisbat uchun */
+            padding-bottom: 56.25%; 
+            height: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none; /* iframe chegarasini olib tashlash */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="video-container">
+        <div class="video-header">
+            <h1>Hızlı ve Öfkeli: Hobbs ve Shaw (2019)</h1>
+        </div>
+        <div class="video-wrapper">
+            <iframe 
+                src="https://www.myvideoplayer.top/my/video/5739fb4e82ed5366680b13441c6adeb4" 
+                allow="fullscreen"
+                allowfullscreen="true" 
+                webkitallowfullscreen="true" 
+                mozallowfullscreen="true">
+            </iframe>
+        </div>
+    </div>
+
+</body>
+</html>
